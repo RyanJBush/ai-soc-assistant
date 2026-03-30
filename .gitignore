@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Data/artifacts
+backend/data/raw/*
+backend/data/processed/*
+backend/data/artifacts/*
+!backend/data/raw/.gitkeep
+!backend/data/processed/.gitkeep
+!backend/data/artifacts/.gitkeep
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# OS/editor
+.DS_Store
+.idea/
+.vscode/
