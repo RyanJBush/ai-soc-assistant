@@ -1,8 +1,8 @@
 import pytest
 from pydantic import ValidationError
 
-from backend.app.schemas.alert import AlertRecord, RecentAlertsResponse
-from backend.app.schemas.inference import InferenceRequest, InferenceResponse, TopContributor
+from backend.app.schemas.alert import RecentAlertsResponse
+from backend.app.schemas.inference import InferenceRequest, TopContributor
 from backend.app.schemas.model_info import ModelInfoResponse
 
 _VALID = dict(

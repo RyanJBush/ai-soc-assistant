@@ -47,4 +47,6 @@ def test_model_info_returns_503_when_model_not_loaded() -> None:
         response = client.get("/model-info")
 
     assert response.status_code == 503
-    assert "No artifact found" in response.json()["detail"]
+    body = response.json()
+    assert body["error_code"] == "MODEL_NOT_LOADED"
+    assert "No artifact found" in body["message"]

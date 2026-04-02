@@ -87,7 +87,9 @@ def test_predict_endpoint_returns_503_when_model_not_loaded() -> None:
 
     response = client.post("/predict", json=payload)
     assert response.status_code == 503
-    assert "No model artifact found" in response.json()["detail"]
+    body = response.json()
+    assert body["error_code"] == "MODEL_NOT_LOADED"
+    assert "No model artifact found" in body["message"]
 
     app.dependency_overrides.clear()
 
@@ -118,7 +120,9 @@ def test_predict_endpoint_returns_500_on_prediction_error() -> None:
 
     response = client.post("/predict", json=payload)
     assert response.status_code == 500
-    assert "Internal pipeline failure" in response.json()["detail"]
+    body = response.json()
+    assert body["error_code"] == "PREDICTION_FAILED"
+    assert "Internal pipeline failure" in body["message"]
 
     app.dependency_overrides.clear()
 
