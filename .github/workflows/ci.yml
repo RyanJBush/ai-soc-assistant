@@ -9,6 +9,8 @@ jobs:
   backend:
     name: Backend — lint & test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -36,6 +38,8 @@ jobs:
   frontend:
     name: Frontend — lint & test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 

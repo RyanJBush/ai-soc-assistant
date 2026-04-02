@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
 
+import logging
+
 import pandas as pd
 
 from backend.app.core.config import Settings
@@ -7,6 +9,8 @@ from backend.app.core.exceptions import PredictionError
 from backend.app.ml.feature_map import FEATURE_COLUMNS
 from backend.app.schemas.inference import InferenceRequest, InferenceResponse, TopContributor
 from backend.app.services.model_registry import ModelRegistry
+
+logger = logging.getLogger(__name__)
 
 
 class PredictionService:
@@ -88,8 +92,11 @@ class PredictionService:
                     TopContributor(feature=feature, impact=round(imp / max_imp, 3))
                     for feature, imp in ranked
                 ]
-            except Exception:  # noqa: BLE001
-                pass  # fall through to heuristic
+            except Exception as exc:  # noqa: BLE001
+                logger.debug(
+                    "Model-based feature importance extraction failed, falling back to heuristic: %s",
+                    exc,
+                )
 
         return PredictionService._heuristic_contributors(payload)
 
