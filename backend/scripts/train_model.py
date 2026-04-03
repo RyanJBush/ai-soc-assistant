@@ -12,6 +12,7 @@ from pathlib import Path
 
 import joblib
 import pandas as pd
+from sklearn.metrics import roc_auc_score
 
 from backend.app.ml.evaluator import evaluate_binary_model
 from backend.app.ml.feature_map import FEATURE_COLUMNS
@@ -103,6 +104,7 @@ def run() -> None:
         probabilities = pipeline.predict_proba(x_test)[:, 1]
 
         metrics = evaluate_binary_model(y_test, predictions, probabilities)
+        metrics["roc_auc"] = float(roc_auc_score(y_test, probabilities))
 
         if best_metrics is None:
             best_name, best_pipeline, best_metrics = model_name, pipeline, metrics
