@@ -1,5 +1,9 @@
 from datetime import datetime, timezone
 
+import pandas as pd
+
+from backend.app.core.config import Settings
+from backend.app.core.exceptions import ModelNotLoadedError, PredictionError
 import logging
 
 import pandas as pd
@@ -19,6 +23,11 @@ class PredictionService:
         self.model_registry = model_registry
 
     def predict(self, request: InferenceRequest) -> InferenceResponse:
+        try:
+            model_bundle = self.model_registry.load_model()
+            pipeline = model_bundle["pipeline"]
+            model_name = model_bundle["model_name"]
+
         model_bundle = self.model_registry.load_model()
         pipeline = model_bundle["pipeline"]
         model_name = model_bundle["model_name"]
@@ -34,6 +43,7 @@ class PredictionService:
             confidence = max(malicious_probability, benign_probability)
             risk_level = self._risk_level(malicious_probability)
 
+            contributors = self._simple_contributors(payload)
             contributors = self._feature_contributors(pipeline, payload)
             return InferenceResponse(
                 prediction_label=prediction_label,
@@ -44,6 +54,8 @@ class PredictionService:
                 model_version=model_name,
                 timestamp=datetime.now(tz=timezone.utc),
             )
+        except ModelNotLoadedError:
+            raise
         except Exception as exc:  # noqa: BLE001
             raise PredictionError("Failed to generate prediction") from exc
 
@@ -55,6 +67,7 @@ class PredictionService:
         return "low"
 
     @staticmethod
+    def _simple_contributors(payload: dict) -> list[TopContributor]:
     def _feature_contributors(pipeline, payload: dict) -> list[TopContributor]:
         """Return top-3 features by model-derived importance.
 

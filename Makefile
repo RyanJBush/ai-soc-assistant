@@ -1,3 +1,4 @@
+.PHONY: backend-install backend-run backend-test backend-lint frontend-install frontend-dev frontend-lint format
 .PHONY: backend-install backend-run backend-test backend-lint frontend-install frontend-dev frontend-lint frontend-test format
 
 backend-install:

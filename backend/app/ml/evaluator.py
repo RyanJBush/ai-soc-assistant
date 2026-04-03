@@ -1,6 +1,8 @@
 from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score, roc_auc_score
 
 
+def evaluate_binary_model(y_true, y_pred, y_scores) -> dict[str, float | int]:
+    tn, fp, fn, tp = confusion_matrix(y_true, y_pred, labels=[0, 1]).ravel()
 def evaluate_binary_model(y_true, y_pred, y_scores) -> dict[str, float]:
     tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
     return {

@@ -1,9 +1,11 @@
+from fastapi import FastAPI
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from backend.app.api.routes_health import router as health_router
 from backend.app.api.routes_model import router as model_router
 from backend.app.api.routes_predict import router as predict_router
+from backend.app.core.logging import configure_logging
 from backend.app.core.exceptions import ModelNotLoadedError, PredictionError
 from backend.app.core.logging import configure_logging
 from backend.app.schemas.errors import ErrorResponse

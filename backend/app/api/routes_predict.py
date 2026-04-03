@@ -1,3 +1,7 @@
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+
+from backend.app.core.config import Settings, get_settings
+from backend.app.core.exceptions import ModelNotLoadedError, PredictionError
 import logging
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Query
@@ -10,6 +14,7 @@ from backend.app.services.alert_service import AlertService
 from backend.app.services.model_registry import get_model_registry
 from backend.app.services.prediction_service import PredictionService
 
+router = APIRouter(tags=["inference"])
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["inference"], dependencies=[Depends(verify_api_key)])
@@ -28,6 +33,17 @@ def get_alert_service(settings: Settings = Depends(get_settings)) -> AlertServic
 @router.post("/predict", response_model=InferenceResponse)
 def predict(
     request: InferenceRequest,
+    prediction_service: PredictionService = Depends(get_prediction_service),
+    alert_service: AlertService = Depends(get_alert_service),
+) -> InferenceResponse:
+    try:
+        response = prediction_service.predict(request)
+        alert_service.create_alert(request=request, response=response)
+        return response
+    except ModelNotLoadedError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+    except PredictionError as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
     background_tasks: BackgroundTasks,
     prediction_service: PredictionService = Depends(get_prediction_service),
     alert_service: AlertService = Depends(get_alert_service),
