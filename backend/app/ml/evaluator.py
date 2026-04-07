@@ -3,8 +3,6 @@ from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_
 
 def evaluate_binary_model(y_true, y_pred, y_scores) -> dict[str, float | int]:
     tn, fp, fn, tp = confusion_matrix(y_true, y_pred, labels=[0, 1]).ravel()
-def evaluate_binary_model(y_true, y_pred, y_scores) -> dict[str, float]:
-    tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
     return {
         "precision": float(precision_score(y_true, y_pred, zero_division=0)),
         "recall": float(recall_score(y_true, y_pred, zero_division=0)),

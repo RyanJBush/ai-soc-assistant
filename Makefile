@@ -1,5 +1,4 @@
-.PHONY: backend-install backend-run backend-test backend-lint frontend-install frontend-dev frontend-lint format
-.PHONY: backend-install backend-run backend-test backend-lint frontend-install frontend-dev frontend-lint frontend-test format
+.PHONY: backend-install backend-run backend-test backend-lint frontend-install frontend-dev frontend-lint frontend-test format docker-build docker-up docker-down
 
 backend-install:
 	python -m pip install -r backend/requirements.txt
@@ -27,3 +26,12 @@ frontend-test:
 
 format:
 	cd frontend && npm run format
+
+docker-build:
+	docker compose build
+
+docker-up:
+	docker compose up
+
+docker-down:
+	docker compose down
