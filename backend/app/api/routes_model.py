@@ -1,10 +1,3 @@
-from fastapi import APIRouter, HTTPException, status
-
-from backend.app.core.exceptions import ModelNotLoadedError
-from backend.app.schemas.model_info import ModelInfoResponse
-from backend.app.services.model_registry import get_model_registry
-
-router = APIRouter(tags=["model"])
 from fastapi import APIRouter, Depends
 
 from backend.app.core.auth import verify_api_key
@@ -17,10 +10,6 @@ router = APIRouter(tags=["model"], dependencies=[Depends(verify_api_key)])
 @router.get("/model-info", response_model=ModelInfoResponse)
 def model_info() -> ModelInfoResponse:
     registry = get_model_registry()
-    try:
-        metadata = registry.load_metrics()
-    except ModelNotLoadedError as exc:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
     metadata = registry.load_metrics()
 
     return ModelInfoResponse(
