@@ -1,27 +1,66 @@
-# AI Intrusion Detection System (MVP)
+# AI SOC Assistant
 
-A production-oriented, portfolio-ready AI IDS that combines:
-- **ML detection pipeline** (NSL-KDD, binary classification)
-- **FastAPI backend** (`/health`, `/predict`, `/model-info`, `/alerts/recent`)
-- **React + TypeScript dashboard** for SOC-style analytics
+A production-oriented, portfolio-ready **AI SOC Assistant** for security operations workflows.
 
-## Tech Stack
-- Backend: FastAPI, Pydantic, scikit-learn, pandas, numpy, joblib, uvicorn
-- Frontend: React, Vite, TypeScript, Tailwind CSS, Recharts
-- Quality: pytest, ruff, eslint, prettier
+It helps analysts:
+- score suspicious network/security events,
+- triage risk quickly,
+- inspect model confidence,
+- review recent alert activity in a SOC-style dashboard.
 
-## Project Structure
-```text
-backend/
-  app/
-  scripts/
-  tests/
-  data/
-frontend/
-  src/
-```
+---
 
-## Local Setup
+## Overview
+
+This project is intentionally positioned as a **SOC analyst support application**, not a generic chatbot.
+It combines ML-assisted detection, typed APIs, alert persistence, and an analyst-friendly frontend.
+
+---
+
+## Features
+
+- **ML-assisted scoring** for IDS-style events via `/predict`
+- **Risk + confidence outputs** (`low` / `medium` / `high`)
+- **Recent alert history** via `/alerts/recent`
+- **Model metadata endpoint** via `/model-info`
+- **Health visibility** via `/health`
+- **SOC dashboard UI** with:
+  - summary cards,
+  - event scoring form,
+  - prediction panel,
+  - recent alerts table,
+  - model metrics,
+  - health + activity panels
+
+---
+
+## Architecture
+
+- **Backend:** FastAPI + Pydantic + service modules
+- **ML/Data:** scikit-learn + pandas + numpy + joblib
+- **DB:** SQLite local fallback, PostgreSQL-ready architecture
+- **Frontend:** React + Vite + TypeScript + Tailwind + Recharts
+- **Tooling:** pytest, ruff, eslint, prettier, GitHub Actions
+
+Architecture docs:
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- [docs/API_SPEC.md](docs/API_SPEC.md)
+- [docs/PORTS.md](docs/PORTS.md)
+
+---
+
+## Screenshots (Placeholders)
+
+> Add screenshots after deployment demo capture.
+
+- `docs/screenshots/dashboard-overview.png`
+- `docs/screenshots/prediction-result.png`
+- `docs/screenshots/recent-alerts.png`
+
+---
+
+## Quick Start
+
 ### 1) Backend
 ```bash
 python -m venv .venv
@@ -29,58 +68,89 @@ source .venv/bin/activate
 pip install -r backend/requirements.txt
 ```
 
-### 2) Prepare Dataset + Train
-Place these files in `backend/data/raw`:
-- `KDDTrain+.txt`
-- `KDDTest+.txt`
-
-Then run:
+### 2) Train model artifacts
 ```bash
 python backend/scripts/train_model.py
 ```
 
-### 3) Run Backend
+### 3) Run backend
 ```bash
 uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### 4) Run Frontend
+### 4) Run frontend
 ```bash
 cd frontend
-npm install
+npm ci
 npm run dev
 ```
 
-## Quick API Checks
+---
+
+## Docker
+
+Build and run full stack:
 ```bash
-curl http://localhost:8000/health
-curl http://localhost:8000/model-info
+docker compose up --build
 ```
 
-Prediction example:
+Stop services:
 ```bash
-curl -X POST http://localhost:8000/predict \
-  -H "Content-Type: application/json" \
-  -d '{
-    "duration": 0,
-    "protocol_type": "tcp",
-    "service": "http",
-    "flag": "SF",
-    "src_bytes": 181,
-    "dst_bytes": 5450,
-    "count": 8,
-    "srv_count": 8,
-    "serror_rate": 0.0,
-    "same_srv_rate": 1.0,
-    "dst_host_count": 20,
-    "dst_host_srv_count": 20
-  }'
+docker compose down
 ```
+
+---
+
+## API
+
+Base URL (local): `http://localhost:8000`
+
+- `GET /health`
+- `GET /model-info`
+- `POST /predict`
+- `GET /alerts/recent`
+
+See full examples in [docs/API_SPEC.md](docs/API_SPEC.md).
+
+---
+
+## Testing
+
+Backend:
+```bash
+PYTHONPATH=. pytest backend/tests -q
+ruff check backend/app
+```
+
+Frontend:
+```bash
+cd frontend
+npm run lint
+npm run test
+npm run build
+```
+
+---
 
 ## Deployment
-See [DEPLOYMENT.md](./DEPLOYMENT.md) for:
-- backend/frontend hosting steps
-- environment variable guidance
-- demo checklist
-- portfolio talking points
-- resume bullets
+
+Deployment playbook for Render/Railway + Vercel/Netlify:
+- [DEPLOYMENT.md](DEPLOYMENT.md)
+
+---
+
+## Limitations
+
+- Baseline model is portfolio-grade, not enterprise production SOC automation.
+- SQLite is used by default for local simplicity; PostgreSQL should be used in production.
+- Explainability is currently heuristic contributor scoring.
+- No enterprise IAM/RBAC or automated response orchestration in MVP.
+
+---
+
+## Resume Highlights
+
+- Built an end-to-end AI SOC Assistant (FastAPI, scikit-learn, React/TypeScript) for event triage and alert visibility.
+- Designed typed API contracts and modular service architecture for scoring, metadata, and recent alerts.
+- Implemented a SOC-style dashboard surfacing model confidence, risk levels, and recent suspicious activity.
+- Added deterministic backend API tests and CI-ready lint/test/build workflow.

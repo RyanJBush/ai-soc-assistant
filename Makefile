@@ -1,5 +1,6 @@
-.PHONY: backend-install backend-run backend-test backend-lint frontend-install frontend-dev frontend-lint format
-.PHONY: backend-install backend-run backend-test backend-lint frontend-install frontend-dev frontend-lint frontend-test format
+.PHONY: backend-install backend-run backend-test backend-lint
+.PHONY: frontend-install frontend-dev frontend-build frontend-lint frontend-test frontend-format
+.PHONY: docker-build docker-up docker-down ci
 
 backend-install:
 	python -m pip install -r backend/requirements.txt
@@ -14,16 +15,30 @@ backend-lint:
 	ruff check backend
 
 frontend-install:
-	cd frontend && npm install
+	cd frontend && npm ci
 
 frontend-dev:
 	cd frontend && npm run dev
+
+frontend-build:
+	cd frontend && npm run build
 
 frontend-lint:
 	cd frontend && npm run lint
 
 frontend-test:
-	cd frontend && npm test
+	cd frontend && npm run test
 
-format:
+frontend-format:
 	cd frontend && npm run format
+
+docker-build:
+	docker compose build
+
+docker-up:
+	docker compose up --build
+
+docker-down:
+	docker compose down
+
+ci: backend-lint backend-test frontend-lint frontend-test frontend-build

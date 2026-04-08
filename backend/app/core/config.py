@@ -20,6 +20,9 @@ class Settings(BaseSettings):
 
     risk_threshold_high: float = Field(default=0.8, ge=0.5, le=1.0)
 
+    log_level: str = "INFO"
+    cors_allowed_origins: str = "http://localhost:5173"
+
     api_key: str | None = None
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
