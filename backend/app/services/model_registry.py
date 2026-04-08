@@ -1,5 +1,6 @@
 import json
 from functools import lru_cache
+from typing import Any
 
 import joblib
 
@@ -11,14 +12,14 @@ class ModelRegistry:
     def __init__(self, settings: Settings):
         self.settings = settings
 
-    def load_model(self):
+    def load_model(self) -> dict[str, Any]:
         if not self.settings.model_artifact_path.exists():
             raise ModelNotLoadedError(
                 f"Model artifact not found at {self.settings.model_artifact_path}. Run training script first."
             )
         return joblib.load(self.settings.model_artifact_path)
 
-    def load_metrics(self) -> dict:
+    def load_metrics(self) -> dict[str, Any]:
         if not self.settings.metrics_path.exists():
             raise ModelNotLoadedError(
                 f"Metrics file not found at {self.settings.metrics_path}. Run training script first."

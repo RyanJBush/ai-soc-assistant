@@ -1,4 +1,5 @@
 import type {
+  HealthResponse,
   InferenceRequest,
   InferenceResponse,
   ModelInfoResponse,
@@ -22,6 +23,10 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   }
 
   return (await response.json()) as T
+}
+
+export function fetchHealth(): Promise<HealthResponse> {
+  return request<HealthResponse>('/health')
 }
 
 export function fetchModelInfo(): Promise<ModelInfoResponse> {

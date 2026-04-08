@@ -5,6 +5,12 @@ class ModelNotLoadedError(RuntimeError):
 
 
 class PredictionError(RuntimeError):
-    """Raised when prediction fails."""
+    """Raised when prediction inference fails."""
 
     error_code: str = "PREDICTION_FAILED"
+
+
+class AlertPersistenceError(RuntimeError):
+    """Raised when alert persistence operations fail."""
+
+    error_code: str = "ALERT_PERSISTENCE_FAILED"

@@ -2,6 +2,11 @@ services:
   backend:
     build:
       context: .
+      dockerfile: backend/Dockerfile
+    env_file:
+      - .env.example
+    ports:
+      - "8000:8000"
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
@@ -12,6 +17,12 @@ services:
 
   frontend:
     build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8000
+    ports:
+      - "5173:5173"
       context: ./frontend
       dockerfile: Dockerfile
       args:

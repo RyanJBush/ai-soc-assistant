@@ -10,8 +10,6 @@ from backend.app.ml.feature_map import FEATURE_COLUMNS
 from backend.app.schemas.inference import InferenceRequest, InferenceResponse, TopContributor
 from backend.app.services.model_registry import ModelRegistry
 
-logger = logging.getLogger(__name__)
-
 
 class PredictionService:
     def __init__(self, settings: Settings, model_registry: ModelRegistry):
@@ -19,6 +17,11 @@ class PredictionService:
         self.model_registry = model_registry
 
     def predict(self, request: InferenceRequest) -> InferenceResponse:
+        try:
+            model_bundle = self.model_registry.load_model()
+            pipeline = model_bundle["pipeline"]
+            model_name = model_bundle["model_name"]
+
         model_bundle = self.model_registry.load_model()
         pipeline = model_bundle["pipeline"]
         model_name = model_bundle["model_name"]
@@ -28,8 +31,9 @@ class PredictionService:
             frame = pd.DataFrame([payload], columns=FEATURE_COLUMNS)
 
             probabilities = pipeline.predict_proba(frame)[0]
-            malicious_probability = float(probabilities[1])
             benign_probability = float(probabilities[0])
+            malicious_probability = float(probabilities[1])
+
             prediction_label = "malicious" if malicious_probability >= 0.5 else "benign"
             confidence = max(malicious_probability, benign_probability)
             risk_level = self._risk_level(malicious_probability)
@@ -40,8 +44,8 @@ class PredictionService:
                 malicious_probability=round(malicious_probability, 4),
                 confidence=round(confidence, 4),
                 risk_level=risk_level,
-                top_contributors=contributors,
-                model_version=model_name,
+                top_contributors=self._heuristic_contributors(payload),
+                model_version=str(model_name),
                 timestamp=datetime.now(tz=timezone.utc),
             )
         except ModelNotLoadedError:

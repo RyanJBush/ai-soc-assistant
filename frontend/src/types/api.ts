@@ -51,3 +51,7 @@ export interface AlertRecord {
 export interface RecentAlertsResponse {
   alerts: AlertRecord[]
 }
+
+export interface HealthResponse {
+  status: 'ok' | 'degraded' | 'error' | string
+}

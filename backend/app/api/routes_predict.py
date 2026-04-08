@@ -10,13 +10,12 @@ from backend.app.services.alert_service import AlertService
 from backend.app.services.model_registry import get_model_registry
 from backend.app.services.prediction_service import PredictionService
 
+logger = logging.getLogger(__name__)
 router = APIRouter(tags=["inference"], dependencies=[Depends(verify_api_key)])
 logger = logging.getLogger(__name__)
 
 
-def get_prediction_service(
-    settings: Settings = Depends(get_settings),
-) -> PredictionService:
+def get_prediction_service(settings: Settings = Depends(get_settings)) -> PredictionService:
     return PredictionService(settings=settings, model_registry=get_model_registry())
 
 
@@ -31,23 +30,9 @@ def predict(
     prediction_service: PredictionService = Depends(get_prediction_service),
     alert_service: AlertService = Depends(get_alert_service),
 ) -> InferenceResponse:
-    logger.info(
-        "predict request: protocol=%s service=%s flag=%s src_bytes=%d dst_bytes=%d",
-        request.protocol_type,
-        request.service,
-        request.flag,
-        request.src_bytes,
-        request.dst_bytes,
-    )
+    logger.info("Predict request received")
     response = prediction_service.predict(request)
     background_tasks.add_task(alert_service.create_alert, request=request, response=response)
-    logger.info(
-        "predict response: label=%s risk=%s confidence=%.4f model=%s",
-        response.prediction_label,
-        response.risk_level,
-        response.confidence,
-        response.model_version,
-    )
     return response
 
 

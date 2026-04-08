@@ -36,7 +36,7 @@ jobs:
         run: make backend-test
 
   frontend:
-    name: Frontend — lint & test
+    name: Frontend — lint, test & build
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -58,3 +58,6 @@ jobs:
 
       - name: Test (vitest)
         run: make frontend-test
+
+      - name: Build (vite)
+        run: make frontend-build

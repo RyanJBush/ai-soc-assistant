@@ -1,29 +1,48 @@
 import { useEffect, useState } from 'react'
 
+import { ActivityFeed } from '../components/ActivityFeed'
 import { AlertsTable } from '../components/AlertsTable'
+import { HealthPanel } from '../components/HealthPanel'
 import { MetricsPanel } from '../components/MetricsPanel'
 import { PredictionCard } from '../components/PredictionCard'
 import { StatusBanner } from '../components/StatusBanner'
+import { SummaryCards } from '../components/SummaryCards'
 import { TrafficInputForm } from '../components/TrafficInputForm'
-import { fetchModelInfo, fetchRecentAlerts, predict } from '../lib/api'
-import type { AlertRecord, InferenceRequest, InferenceResponse, ModelInfoResponse } from '../types/api'
+import { fetchHealth, fetchModelInfo, fetchRecentAlerts, predict } from '../lib/api'
+import type {
+  AlertRecord,
+  HealthResponse,
+  InferenceRequest,
+  InferenceResponse,
+  ModelInfoResponse,
+} from '../types/api'
 
 export function DashboardPage() {
   const [loading, setLoading] = useState(false)
+  const [initializing, setInitializing] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [prediction, setPrediction] = useState<InferenceResponse | null>(null)
   const [modelInfo, setModelInfo] = useState<ModelInfoResponse | null>(null)
+  const [health, setHealth] = useState<HealthResponse | null>(null)
   const [alerts, setAlerts] = useState<AlertRecord[]>([])
 
   useEffect(() => {
     void (async () => {
+      setInitializing(true)
       try {
-        const [model, recentAlerts] = await Promise.all([fetchModelInfo(), fetchRecentAlerts(10)])
+        const [healthData, model, recentAlerts] = await Promise.all([
+          fetchHealth(),
+          fetchModelInfo(),
+          fetchRecentAlerts(10),
+        ])
+        setHealth(healthData)
         setModelInfo(model)
         setAlerts(recentAlerts.alerts)
       } catch (apiError) {
         setError((apiError as Error).message)
+      } finally {
+        setInitializing(false)
       }
     })()
   }, [])
@@ -51,23 +70,33 @@ export function DashboardPage() {
       <header className="mb-6">
         <h1 className="text-3xl font-bold">SOC Intrusion Detection Dashboard</h1>
         <p className="mt-2 text-slate-300">
-          Run AI-assisted network detection, review model metrics, and monitor recent alerts.
+          AI-assisted event scoring, alert triage, and model visibility for security operations workflows.
         </p>
       </header>
 
       <div className="mb-4 space-y-2">
+        {initializing && <StatusBanner kind="info" message="Loading SOC context..." />}
         {error && <StatusBanner kind="error" message={error} />}
         {success && <StatusBanner kind="success" message={success} />}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <SummaryCards alerts={alerts} prediction={prediction} />
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <TrafficInputForm onSubmit={handlePredict} loading={loading} />
         <PredictionCard prediction={prediction} />
       </div>
 
+      <div className="mt-4 grid gap-4 xl:grid-cols-3">
+        <div className="xl:col-span-2">
+          <AlertsTable alerts={alerts} />
+        </div>
+        <ActivityFeed prediction={prediction} alerts={alerts} />
+      </div>
+
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <MetricsPanel modelInfo={modelInfo} />
-        <AlertsTable alerts={alerts} />
+        <HealthPanel health={health} modelInfo={modelInfo} />
       </div>
     </main>
   )

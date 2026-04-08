@@ -13,10 +13,10 @@ def model_info() -> ModelInfoResponse:
     metadata = registry.load_metrics()
 
     return ModelInfoResponse(
-        model_name=metadata["model_name"],
-        model_version=metadata["model_name"],
-        selected_features=metadata["selected_features"],
-        training_rows=metadata["training_rows"],
-        test_rows=metadata["test_rows"],
-        metrics=metadata["metrics"],
+        model_name=str(metadata.get("model_name", "unknown")),
+        model_version=str(metadata.get("model_name", "unknown")),
+        selected_features=list(metadata.get("selected_features", [])),
+        training_rows=int(metadata.get("training_rows", 0)),
+        test_rows=int(metadata.get("test_rows", 0)),
+        metrics=dict(metadata.get("metrics", {})),
     )

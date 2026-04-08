@@ -13,6 +13,7 @@ class AlertService:
     def create_alert(self, request: InferenceRequest, response: InferenceResponse) -> None:
         if not self.settings.alert_logging_enabled:
             return
+
         with get_connection(self.settings.sqlite_db_path) as connection:
             connection.execute(
                 """
