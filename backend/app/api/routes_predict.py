@@ -12,6 +12,7 @@ from backend.app.services.prediction_service import PredictionService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["inference"], dependencies=[Depends(verify_api_key)])
+logger = logging.getLogger(__name__)
 
 
 def get_prediction_service(settings: Settings = Depends(get_settings)) -> PredictionService:
