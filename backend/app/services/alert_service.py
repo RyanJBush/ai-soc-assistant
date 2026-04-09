@@ -1,55 +1,290 @@
 from datetime import datetime, timezone
 
 from backend.app.core.config import Settings
-from backend.app.db.sqlite import dump_json, get_connection, load_json
-from backend.app.schemas.alert import AlertRecord
+from backend.app.db.sqlite import dump_json, load_json
+from backend.app.db.session import Database
+from backend.app.schemas.alert import AlertNote, AlertRecord, AlertStatus
 from backend.app.schemas.inference import InferenceRequest, InferenceResponse
+from backend.app.services.audit_service import AuditService
 
 
 class AlertService:
     def __init__(self, settings: Settings):
         self.settings = settings
+        self.db = Database(settings)
+        self.db.run_migrations()
+        self.audit_service = AuditService(settings)
 
-    def create_alert(self, request: InferenceRequest, response: InferenceResponse) -> None:
+    def create_alert(
+        self,
+        request: InferenceRequest,
+        response: InferenceResponse,
+        actor: str = "system",
+    ) -> None:
         if not self.settings.alert_logging_enabled:
             return
 
-        with get_connection(self.settings.sqlite_db_path) as connection:
-            connection.execute(
-                """
-                INSERT INTO alerts (created_at, prediction_label, confidence, risk_level, input_snapshot_json)
-                VALUES (?, ?, ?, ?, ?)
-                """,
-                (
-                    datetime.now(tz=timezone.utc).isoformat(),
-                    response.prediction_label,
-                    response.confidence,
-                    response.risk_level,
-                    dump_json(request.model_dump()),
-                ),
-            )
+        payload = (
+            datetime.now(tz=timezone.utc),
+            response.prediction_label,
+            response.confidence,
+            response.risk_level,
+            dump_json(request.model_dump()),
+            response.model_version,
+            response.malicious_probability,
+            dump_json([item.model_dump() for item in response.top_contributors]),
+        )
+
+        with self.db.connection() as connection:
+            if self.db.driver == "sqlite":
+                cursor = connection.execute(
+                    """
+                    INSERT INTO alerts (
+                        created_at, prediction_label, confidence, risk_level, input_snapshot_json,
+                        model_version, malicious_probability, contributors_json
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        payload[0].isoformat(),
+                        payload[1],
+                        payload[2],
+                        payload[3],
+                        payload[4],
+                        payload[5],
+                        payload[6],
+                        payload[7],
+                    ),
+                )
+                alert_id = str(cursor.lastrowid)
+            else:
+                result = connection.execute(
+                    """
+                    INSERT INTO alerts (
+                        created_at, prediction_label, confidence, risk_level, input_snapshot_json,
+                        model_version, malicious_probability, contributors_json
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    RETURNING id
+                    """,
+                    payload,
+                )
+                alert_id = str(result.fetchone()["id"])
             connection.commit()
 
-    def get_recent_alerts(self, limit: int) -> list[AlertRecord]:
-        with get_connection(self.settings.sqlite_db_path) as connection:
-            rows = connection.execute(
-                """
-                SELECT id, created_at, prediction_label, confidence, risk_level, input_snapshot_json
-                FROM alerts
-                ORDER BY id DESC
-                LIMIT ?
-                """,
-                (limit,),
-            ).fetchall()
+        self.audit_service.log_event(
+            actor=actor,
+            action="alert.create",
+            resource_type="alert",
+            resource_id=alert_id,
+            outcome="success",
+            details={"risk_level": response.risk_level, "prediction_label": response.prediction_label},
+        )
 
-        return [
+    def query_alerts(
+        self,
+        *,
+        limit: int,
+        page: int = 1,
+        status: AlertStatus | None = None,
+        assigned_to: str | None = None,
+        sort_by: str = "created_at",
+        sort_order: str = "desc",
+    ) -> tuple[list[AlertRecord], int]:
+        offset = (page - 1) * limit
+        allowed_sort = {"created_at", "confidence", "risk_level", "status", "updated_at"}
+        sort_key = sort_by if sort_by in allowed_sort else "created_at"
+        order = "ASC" if sort_order.lower() == "asc" else "DESC"
+
+        filters: list[str] = []
+        params: list[object] = []
+        placeholder = "%s" if self.db.driver != "sqlite" else "?"
+
+        if status:
+            filters.append(f"status = {placeholder}")
+            params.append(status)
+        if assigned_to:
+            filters.append(f"assigned_to = {placeholder}")
+            params.append(assigned_to)
+
+        where_clause = f"WHERE {' AND '.join(filters)}" if filters else ""
+
+        with self.db.connection() as connection:
+            count_query = f"SELECT COUNT(*) as total FROM alerts {where_clause}"
+            total_row = connection.execute(count_query, tuple(params)).fetchone()
+            total = int(total_row["total"])
+
+            query = f"""
+                SELECT id, created_at, updated_at, prediction_label, confidence, risk_level,
+                       malicious_probability, model_version, status, assigned_to,
+                       input_snapshot_json, contributors_json
+                FROM alerts
+                {where_clause}
+                ORDER BY {sort_key} {order}
+                LIMIT {placeholder}
+                OFFSET {placeholder}
+            """
+            rows = connection.execute(query, tuple([*params, limit, offset])).fetchall()
+
+        records = [
             AlertRecord(
                 id=row["id"],
                 created_at=row["created_at"],
+                updated_at=row["updated_at"],
                 prediction_label=row["prediction_label"],
                 confidence=row["confidence"],
                 risk_level=row["risk_level"],
+                malicious_probability=row["malicious_probability"],
+                model_version=row["model_version"],
+                status=row["status"],
+                assigned_to=row["assigned_to"],
+                top_contributors=load_json(row["contributors_json"]) if row["contributors_json"] else [],
                 input_snapshot=load_json(row["input_snapshot_json"]),
+            )
+            for row in rows
+        ]
+        return records, total
+
+
+    def get_recent_alerts(self, limit: int) -> list[AlertRecord]:
+        records, _ = self.query_alerts(limit=limit)
+        return records
+
+    def get_alert(self, alert_id: int) -> AlertRecord | None:
+        placeholder = "%s" if self.db.driver != "sqlite" else "?"
+        with self.db.connection() as connection:
+            row = connection.execute(
+                f"""
+                SELECT id, created_at, updated_at, prediction_label, confidence, risk_level,
+                       malicious_probability, model_version, status, assigned_to,
+                       input_snapshot_json, contributors_json
+                FROM alerts
+                WHERE id = {placeholder}
+                """,
+                (alert_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        return AlertRecord(
+            id=row["id"],
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
+            prediction_label=row["prediction_label"],
+            confidence=row["confidence"],
+            risk_level=row["risk_level"],
+            malicious_probability=row["malicious_probability"],
+            model_version=row["model_version"],
+            status=row["status"],
+            assigned_to=row["assigned_to"],
+            top_contributors=load_json(row["contributors_json"]) if row["contributors_json"] else [],
+            input_snapshot=load_json(row["input_snapshot_json"]),
+        )
+
+    def update_status(self, alert_id: int, status: AlertStatus, actor: str) -> AlertRecord | None:
+        placeholder = "%s" if self.db.driver != "sqlite" else "?"
+        now_value = datetime.now(tz=timezone.utc)
+        with self.db.connection() as connection:
+            connection.execute(
+                f"UPDATE alerts SET status = {placeholder}, updated_at = {placeholder} WHERE id = {placeholder}",
+                (status, now_value.isoformat() if self.db.driver == "sqlite" else now_value, alert_id),
+            )
+            connection.commit()
+        record = self.get_alert(alert_id)
+        if record:
+            self.audit_service.log_event(
+                actor=actor,
+                action="alert.status_update",
+                resource_type="alert",
+                resource_id=str(alert_id),
+                outcome="success",
+                details={"status": status},
+            )
+        return record
+
+    def assign_alert(self, alert_id: int, assigned_to: str, actor: str) -> AlertRecord | None:
+        placeholder = "%s" if self.db.driver != "sqlite" else "?"
+        now_value = datetime.now(tz=timezone.utc)
+        with self.db.connection() as connection:
+            connection.execute(
+                f"UPDATE alerts SET assigned_to = {placeholder}, updated_at = {placeholder} WHERE id = {placeholder}",
+                (assigned_to, now_value.isoformat() if self.db.driver == "sqlite" else now_value, alert_id),
+            )
+            connection.commit()
+        record = self.get_alert(alert_id)
+        if record:
+            self.audit_service.log_event(
+                actor=actor,
+                action="alert.assignment_update",
+                resource_type="alert",
+                resource_id=str(alert_id),
+                outcome="success",
+                details={"assigned_to": assigned_to},
+            )
+        return record
+
+    def add_note(self, alert_id: int, author: str, note: str) -> AlertNote | None:
+        placeholder = "%s" if self.db.driver != "sqlite" else "?"
+        with self.db.connection() as connection:
+            exists = connection.execute(
+                f"SELECT id FROM alerts WHERE id = {placeholder}",
+                (alert_id,),
+            ).fetchone()
+            if not exists:
+                return None
+
+            if self.db.driver == "sqlite":
+                cursor = connection.execute(
+                    f"INSERT INTO alert_notes (alert_id, author, note, created_at) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder})",
+                    (alert_id, author, note, datetime.now(tz=timezone.utc).isoformat()),
+                )
+                note_id = cursor.lastrowid
+            else:
+                row = connection.execute(
+                    f"INSERT INTO alert_notes (alert_id, author, note, created_at) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}) RETURNING id",
+                    (alert_id, author, note, datetime.now(tz=timezone.utc)),
+                ).fetchone()
+                note_id = row["id"]
+            connection.commit()
+
+            note_row = connection.execute(
+                f"SELECT id, alert_id, author, note, created_at FROM alert_notes WHERE id = {placeholder}",
+                (note_id,),
+            ).fetchone()
+
+        self.audit_service.log_event(
+            actor=author,
+            action="alert.note_add",
+            resource_type="alert",
+            resource_id=str(alert_id),
+            outcome="success",
+            details={"note_id": note_id},
+        )
+
+        return AlertNote(
+            id=note_row["id"],
+            alert_id=note_row["alert_id"],
+            author=note_row["author"],
+            note=note_row["note"],
+            created_at=note_row["created_at"],
+        )
+
+    def get_notes(self, alert_id: int) -> list[AlertNote]:
+        placeholder = "%s" if self.db.driver != "sqlite" else "?"
+        with self.db.connection() as connection:
+            rows = connection.execute(
+                f"""
+                SELECT id, alert_id, author, note, created_at
+                FROM alert_notes
+                WHERE alert_id = {placeholder}
+                ORDER BY id DESC
+                """,
+                (alert_id,),
+            ).fetchall()
+        return [
+            AlertNote(
+                id=row["id"],
+                alert_id=row["alert_id"],
+                author=row["author"],
+                note=row["note"],
+                created_at=row["created_at"],
             )
             for row in rows
         ]

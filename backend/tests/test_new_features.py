@@ -1,7 +1,7 @@
 """Tests for the new Phase 2–4 features:
 
 - Consistent error envelope (error_code, message, timestamp)
-- Optional API-key authentication
+- JWT auth + RBAC
 - Model-based feature contributors (RF feature_importances_, LR coef_)
 - Background-task alert creation (non-blocking)
 """
@@ -24,6 +24,7 @@ from backend.app.schemas.errors import ErrorResponse
 from backend.app.schemas.inference import InferenceRequest, InferenceResponse, TopContributor
 from backend.app.services.model_registry import ModelRegistry
 from backend.app.services.prediction_service import PredictionService
+from backend.tests.conftest import auth_headers
 
 # ---------------------------------------------------------------------------
 # Module-level stub pipelines (must be picklable for joblib.dump)
@@ -119,7 +120,7 @@ def test_model_not_loaded_returns_envelope() -> None:
     app.dependency_overrides[get_alert_service] = lambda: StubAlertService()
     client = TestClient(app)
 
-    resp = client.post("/predict", json=_PAYLOAD)
+    resp = client.post("/predict", json=_PAYLOAD, headers=auth_headers(client))
     assert resp.status_code == 503
     body = resp.json()
     assert body["error_code"] == "MODEL_NOT_LOADED"
@@ -138,7 +139,7 @@ def test_prediction_error_returns_envelope() -> None:
     app.dependency_overrides[get_alert_service] = lambda: StubAlertService()
     client = TestClient(app)
 
-    resp = client.post("/predict", json=_PAYLOAD)
+    resp = client.post("/predict", json=_PAYLOAD, headers=auth_headers(client))
     assert resp.status_code == 500
     body = resp.json()
     assert body["error_code"] == "PREDICTION_FAILED"
@@ -149,28 +150,11 @@ def test_prediction_error_returns_envelope() -> None:
 
 
 # ---------------------------------------------------------------------------
-# API Key Authentication
+# JWT Authentication + RBAC
 # ---------------------------------------------------------------------------
 
 
-def test_predict_passes_without_api_key_when_not_configured() -> None:
-    """When API_KEY is unset, requests pass through without any header."""
-    app.dependency_overrides[get_prediction_service] = lambda: _make_stub_svc()
-    app.dependency_overrides[get_alert_service] = lambda: StubAlertService()
-    client = TestClient(app)
-
-    resp = client.post("/predict", json=_PAYLOAD)
-    assert resp.status_code == 200
-
-    app.dependency_overrides.clear()
-
-
-def test_predict_returns_401_when_api_key_configured_and_missing(monkeypatch) -> None:
-    monkeypatch.setenv("API_KEY", "secret-token")
-    from backend.app.core import config
-
-    config.get_settings.cache_clear()
-
+def test_predict_requires_auth_token() -> None:
     app.dependency_overrides[get_prediction_service] = lambda: _make_stub_svc()
     app.dependency_overrides[get_alert_service] = lambda: StubAlertService()
     client = TestClient(app, raise_server_exceptions=False)
@@ -178,43 +162,52 @@ def test_predict_returns_401_when_api_key_configured_and_missing(monkeypatch) ->
     resp = client.post("/predict", json=_PAYLOAD)
     assert resp.status_code == 401
 
-    config.get_settings.cache_clear()
     app.dependency_overrides.clear()
 
 
-def test_predict_returns_401_for_wrong_api_key(monkeypatch) -> None:
-    monkeypatch.setenv("API_KEY", "secret-token")
-    from backend.app.core import config
-
-    config.get_settings.cache_clear()
-
+def test_predict_rejects_invalid_token() -> None:
     app.dependency_overrides[get_prediction_service] = lambda: _make_stub_svc()
     app.dependency_overrides[get_alert_service] = lambda: StubAlertService()
     client = TestClient(app, raise_server_exceptions=False)
 
-    resp = client.post("/predict", json=_PAYLOAD, headers={"X-API-Key": "wrong-key"})
+    resp = client.post(
+        "/predict",
+        json=_PAYLOAD,
+        headers={"Authorization": "Bearer invalid-token"},
+    )
     assert resp.status_code == 401
 
-    config.get_settings.cache_clear()
     app.dependency_overrides.clear()
 
 
-def test_predict_passes_with_correct_api_key(monkeypatch) -> None:
-    monkeypatch.setenv("API_KEY", "secret-token")
-    from backend.app.core import config
-
-    config.get_settings.cache_clear()
-
+def test_viewer_cannot_call_predict() -> None:
     app.dependency_overrides[get_prediction_service] = lambda: _make_stub_svc()
     app.dependency_overrides[get_alert_service] = lambda: StubAlertService()
     client = TestClient(app, raise_server_exceptions=False)
 
-    resp = client.post("/predict", json=_PAYLOAD, headers={"X-API-Key": "secret-token"})
-    assert resp.status_code == 200
+    resp = client.post(
+        "/predict",
+        json=_PAYLOAD,
+        headers=auth_headers(client, "viewer", "viewer123!"),
+    )
+    assert resp.status_code == 403
 
-    config.get_settings.cache_clear()
     app.dependency_overrides.clear()
 
+
+def test_analyst_can_call_predict() -> None:
+    app.dependency_overrides[get_prediction_service] = lambda: _make_stub_svc()
+    app.dependency_overrides[get_alert_service] = lambda: StubAlertService()
+    client = TestClient(app, raise_server_exceptions=False)
+
+    resp = client.post(
+        "/predict",
+        json=_PAYLOAD,
+        headers=auth_headers(client, "analyst", "analyst123!"),
+    )
+    assert resp.status_code == 200
+
+    app.dependency_overrides.clear()
 
 # ---------------------------------------------------------------------------
 # Background-task alert creation
@@ -226,7 +219,7 @@ def test_predict_creates_alert_via_background_task() -> None:
     created = []
 
     class TrackingAlertService:
-        def create_alert(self, request, response):
+        def create_alert(self, request, response, actor="system"):
             created.append((request, response))
 
         def get_recent_alerts(self, limit: int):
@@ -236,7 +229,7 @@ def test_predict_creates_alert_via_background_task() -> None:
     app.dependency_overrides[get_alert_service] = lambda: TrackingAlertService()
     client = TestClient(app)
 
-    resp = client.post("/predict", json=_PAYLOAD)
+    resp = client.post("/predict", json=_PAYLOAD, headers=auth_headers(client))
     assert resp.status_code == 200
     # TestClient runs background tasks synchronously
     assert len(created) == 1

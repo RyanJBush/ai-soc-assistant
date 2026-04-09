@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: ai-soc-assistant-backend
+    runtime: python
+    plan: starter
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: AUTH_ENABLED
+        value: true
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: 60
+      - key: RATE_LIMIT_PER_MINUTE
+        value: 120
+      - key: MALICIOUS_DECISION_THRESHOLD
+        value: 0.5
+      - key: RISK_THRESHOLD_MEDIUM
+        value: 0.5
+      - key: RISK_THRESHOLD_HIGH
+        value: 0.8
+      - key: RISK_THRESHOLD_CRITICAL
+        value: 0.93
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ai-soc-assistant-db
+          property: connectionString
+
+databases:
+  - name: ai-soc-assistant-db
+    plan: starter
