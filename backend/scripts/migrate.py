@@ -26,10 +26,6 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
-from pathlib import Path
-
-# Ensure the repo root is on the path when the script is invoked directly.
-sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from backend.app.core.config import get_settings
 from backend.app.core.logging import configure_logging
