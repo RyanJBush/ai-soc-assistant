@@ -1,9 +1,16 @@
 .PHONY: backend-install backend-run backend-test backend-test-coverage backend-lint
 .PHONY: frontend-install frontend-dev frontend-build frontend-lint frontend-test frontend-test-coverage frontend-format
 .PHONY: docker-build docker-up docker-down ci ci-coverage smoke-test
+.PHONY: db-migrate db-migrate-check
 
 backend-install:
 	python -m pip install -r backend/requirements.txt
+
+db-migrate:
+	python -m backend.scripts.migrate
+
+db-migrate-check:
+	python -m backend.scripts.migrate --check
 
 backend-run:
 	uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
