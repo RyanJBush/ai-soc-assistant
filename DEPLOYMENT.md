@@ -1,4 +1,4 @@
-# Deployment Guide (Phase 6)
+# Deployment Guide
 
 ## 1) Recommended hosting split
 
@@ -33,18 +33,72 @@ Provided manifests/templates:
 - `RISK_THRESHOLD_HIGH` (default `0.8`)
 - `RISK_THRESHOLD_CRITICAL` (default `0.93`)
 
-## 4) Release/deploy flow
+## 4) Database migrations
+
+Migrations are managed by a lightweight built-in runner located in
+`backend/app/db/migrations.py`.  There are two migration paths:
+
+| Path | When used |
+|------|-----------|
+| SQLite (`*_sqlite.sql`) | Local development – no configuration required |
+| PostgreSQL (`*.sql`, excluding `*_sqlite.sql`) | Staging / production via `DATABASE_URL` |
+
+### How migrations run
+
+Migrations are applied automatically when the backend process starts.
+The runner records each applied version in a `schema_migrations` table, so
+re-starts are safe and idempotent.
+
+### Running migrations manually
+
+Before deploying a new release (or after a DB restore) you can run
+migrations without starting the full API server:
+
+```bash
+# Apply all pending migrations
+make db-migrate
+
+# Check for pending migrations (exits 1 if any are found – useful in CI)
+make db-migrate-check
+
+# Equivalent without make
+python -m backend.scripts.migrate
+python -m backend.scripts.migrate --check
+```
+
+Pass `DATABASE_URL` to target a non-default database:
+
+```bash
+DATABASE_URL=postgresql://user:pass@host:5432/mydb python -m backend.scripts.migrate
+```
+
+### Migration naming convention
+
+Migration files live in `backend/app/db/sql/` and follow the pattern:
+
+```
+<version>__<description>.sql          # PostgreSQL (and SQLite fallback for simple DDL)
+<version>__<description>_sqlite.sql   # SQLite-specific syntax
+```
+
+Versions are zero-padded three-digit strings (`001`, `002`, …).
+Add new migration files by incrementing the version number; the runner
+automatically picks them up in sorted order.
+
+## 5) Release/deploy flow
 
 1. Run pre-release checks from [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md)
-2. Deploy backend + DB
-3. Deploy frontend with `VITE_API_BASE_URL` pointing to backend
-4. Run smoke validation:
+2. Provision the database and set `DATABASE_URL`
+3. Run `make db-migrate-check` in CI to assert the schema is current
+4. Deploy backend
+5. Deploy frontend with `VITE_API_BASE_URL` pointing to the backend
+6. Run smoke validation:
 
 ```bash
 make smoke-test
 ```
 
-## 5) Post-deploy verification
+## 6) Post-deploy verification
 
 - `GET /health` returns `{"status":"ok"}`
 - `POST /auth/login` succeeds for known test account
@@ -53,7 +107,7 @@ make smoke-test
 - `GET /alerts/recent` shows created alert
 - `GET /monitoring/events` returns recent events
 
-## 6) Operational references
+## 7) Operational references
 
 - [RUNBOOK.md](RUNBOOK.md)
 - [CHANGELOG.md](CHANGELOG.md)

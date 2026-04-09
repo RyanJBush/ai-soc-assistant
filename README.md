@@ -48,6 +48,17 @@ python backend/scripts/train_model.py
 uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
+The backend automatically runs all pending database migrations on startup.
+For local development this creates a SQLite database at
+`backend/data/artifacts/alerts.db` (no extra configuration required).
+
+You can also run migrations manually:
+
+```bash
+make db-migrate            # apply pending migrations
+make db-migrate-check      # check for pending migrations (CI-friendly, exits 1 if any)
+```
+
 Frontend:
 
 ```bash
