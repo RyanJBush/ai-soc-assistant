@@ -1,6 +1,7 @@
 import type {
   AlertDetailResponse,
   AlertStatus,
+  AlertTriageHistoryResponse,
   HealthResponse,
   InferenceRequest,
   InferenceResponse,
@@ -106,6 +107,10 @@ export function addAlertNote(alertId: number, note: string): Promise<AlertDetail
     method: 'POST',
     body: JSON.stringify({ note }),
   })
+}
+
+export function fetchAlertHistory(alertId: number): Promise<AlertTriageHistoryResponse> {
+  return request<AlertTriageHistoryResponse>(`/alerts/${alertId}/history`)
 }
 
 

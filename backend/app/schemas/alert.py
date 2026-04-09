@@ -4,6 +4,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 AlertStatus = Literal["new", "acknowledged", "escalated", "resolved"]
+TriageEventType = Literal["status_change", "assignment_change"]
 
 
 class AlertNote(BaseModel):
@@ -11,6 +12,17 @@ class AlertNote(BaseModel):
     alert_id: int
     author: str
     note: str
+    created_at: datetime
+
+
+class AlertTriageEvent(BaseModel):
+    id: int
+    alert_id: int
+    actor: str
+    event_type: TriageEventType
+    old_value: str | None
+    new_value: str
+    note: str | None
     created_at: datetime
 
 
@@ -27,6 +39,11 @@ class AlertRecord(BaseModel):
     assigned_to: str | None = None
     top_contributors: list[dict] = Field(default_factory=list)
     input_snapshot: dict
+
+
+class AlertTriageHistoryResponse(BaseModel):
+    alert_id: int
+    events: list[AlertTriageEvent]
 
 
 class AlertDetailResponse(BaseModel):

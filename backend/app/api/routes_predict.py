@@ -7,6 +7,7 @@ from backend.app.core.config import Settings, get_settings
 from backend.app.schemas.alert import (
     AddAlertNoteRequest,
     AlertDetailResponse,
+    AlertTriageHistoryResponse,
     AssignAlertRequest,
     RecentAlertsResponse,
     UpdateAlertStatusRequest,
@@ -113,6 +114,20 @@ def assign_alert(
         raise HTTPException(status_code=404, detail="Alert not found")
     notes = alert_service.get_notes(alert_id)
     return AlertDetailResponse(alert=alert, notes=notes)
+
+
+@router.get("/alerts/{alert_id}/history", response_model=AlertTriageHistoryResponse)
+def get_alert_history(
+    alert_id: int,
+    alert_service: AlertService = Depends(get_alert_service),
+    user: UserPrincipal = Depends(require_roles("viewer", "analyst", "admin")),
+) -> AlertTriageHistoryResponse:
+    del user
+    alert = alert_service.get_alert(alert_id)
+    if alert is None:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    events = alert_service.get_triage_history(alert_id)
+    return AlertTriageHistoryResponse(alert_id=alert_id, events=events)
 
 
 @router.post("/alerts/{alert_id}/notes", response_model=AlertDetailResponse)

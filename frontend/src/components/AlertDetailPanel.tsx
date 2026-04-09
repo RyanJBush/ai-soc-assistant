@@ -1,9 +1,11 @@
 import { useState } from 'react'
 
-import type { AlertDetailResponse, AlertStatus } from '../types/api'
+import type { AlertDetailResponse, AlertStatus, AlertTriageEvent } from '../types/api'
+import { RiskBadge, StatusBadge } from './AlertBadges'
 
 interface AlertDetailPanelProps {
   detail: AlertDetailResponse | null
+  triageHistory: AlertTriageEvent[]
   role: string | null
   onUpdateStatus: (status: AlertStatus) => Promise<void>
   onAssign: (assignee: string) => Promise<void>
@@ -12,9 +14,10 @@ interface AlertDetailPanelProps {
 
 const STATUS_OPTIONS: AlertStatus[] = ['new', 'acknowledged', 'escalated', 'resolved']
 
-export function AlertDetailPanel({ detail, role, onUpdateStatus, onAssign, onAddNote }: AlertDetailPanelProps) {
+export function AlertDetailPanel({ detail, triageHistory, role, onUpdateStatus, onAssign, onAddNote }: AlertDetailPanelProps) {
   const [newAssignee, setNewAssignee] = useState('')
   const [newNote, setNewNote] = useState('')
+  const [showSnapshot, setShowSnapshot] = useState(false)
 
   if (!detail) {
     return (
@@ -31,7 +34,12 @@ export function AlertDetailPanel({ detail, role, onUpdateStatus, onAssign, onAdd
     <section className="rounded-lg border border-slate-700 bg-slate-900/70 p-4">
       <h2 className="mb-2 text-lg font-semibold">Alert #{detail.alert.id}</h2>
       <div className="grid gap-1 text-sm text-slate-300">
-        <p>Status: {detail.alert.status}</p>
+        <p>
+          Status: <StatusBadge status={detail.alert.status} />
+        </p>
+        <p>
+          Risk: <RiskBadge risk={detail.alert.risk_level} />
+        </p>
         <p>Assigned: {detail.alert.assigned_to ?? 'Unassigned'}</p>
         <p>Model: {detail.alert.model_version ?? 'unknown'}</p>
         <p>Malicious probability: {((detail.alert.malicious_probability ?? 0) * 100).toFixed(2)}%</p>
@@ -48,6 +56,21 @@ export function AlertDetailPanel({ detail, role, onUpdateStatus, onAssign, onAdd
         </ul>
       </div>
 
+      <div className="mt-3">
+        <button
+          type="button"
+          className="text-xs text-slate-400 underline hover:text-slate-200"
+          onClick={() => setShowSnapshot((prev) => !prev)}
+        >
+          {showSnapshot ? 'Hide' : 'Show'} input snapshot
+        </button>
+        {showSnapshot && (
+          <pre className="mt-2 max-h-40 overflow-auto rounded border border-slate-800 bg-slate-950 p-2 text-xs text-slate-300">
+            {JSON.stringify(detail.alert.input_snapshot, null, 2)}
+          </pre>
+        )}
+      </div>
+
       {canTriage && (
         <div className="mt-4 space-y-3 border-t border-slate-800 pt-3">
           <div>
@@ -57,7 +80,11 @@ export function AlertDetailPanel({ detail, role, onUpdateStatus, onAssign, onAdd
                 <button
                   key={status}
                   type="button"
-                  className="rounded border border-slate-700 px-2 py-1 text-xs"
+                  className={`rounded border px-2 py-1 text-xs ${
+                    detail.alert.status === status
+                      ? 'border-emerald-600 bg-emerald-900/50 text-emerald-200'
+                      : 'border-slate-700 text-slate-300'
+                  }`}
                   onClick={() => void onUpdateStatus(status)}
                 >
                   {status}
@@ -132,6 +159,39 @@ export function AlertDetailPanel({ detail, role, onUpdateStatus, onAssign, onAdd
           </ul>
         )}
       </div>
+
+      {triageHistory.length > 0 && (
+        <div className="mt-4 border-t border-slate-800 pt-3">
+          <p className="mb-2 text-xs uppercase text-slate-400">Triage history</p>
+          <ol className="space-y-1 text-xs text-slate-300">
+            {triageHistory.map((event) => (
+              <li key={event.id} className="flex items-start gap-2">
+                <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-slate-600" />
+                <span>
+                  <span className="font-medium text-slate-200">{event.actor}</span>{' '}
+                  {event.event_type === 'status_change' ? (
+                    <>
+                      changed status{' '}
+                      {event.old_value && (
+                        <>
+                          from <StatusBadge status={event.old_value as AlertStatus} />{' '}
+                        </>
+                      )}
+                      to <StatusBadge status={event.new_value as AlertStatus} />
+                    </>
+                  ) : (
+                    <>
+                      assigned to <span className="font-medium">{event.new_value}</span>
+                      {event.old_value && <> (was {event.old_value})</>}
+                    </>
+                  )}{' '}
+                  <span className="text-slate-500">• {new Date(event.created_at).toLocaleString()}</span>
+                </span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
     </section>
   )
 }

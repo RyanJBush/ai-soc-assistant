@@ -1,4 +1,5 @@
 import type { AlertRecord, AlertStatus } from '../types/api'
+import { RiskBadge, StatusBadge } from './AlertBadges'
 
 interface AlertsTableProps {
   alerts: AlertRecord[]
@@ -6,10 +7,12 @@ interface AlertsTableProps {
   page: number
   pageSize: number
   statusFilter: string
+  assignedToFilter: string
   sortBy: string
   sortOrder: 'asc' | 'desc'
   onPageChange: (nextPage: number) => void
   onStatusFilterChange: (status: string) => void
+  onAssignedToFilterChange: (assignedTo: string) => void
   onSortChange: (sortBy: string, sortOrder: 'asc' | 'desc') => void
   onSelectAlert: (alertId: number) => void
 }
@@ -22,10 +25,12 @@ export function AlertsTable({
   page,
   pageSize,
   statusFilter,
+  assignedToFilter,
   sortBy,
   sortOrder,
   onPageChange,
   onStatusFilterChange,
+  onAssignedToFilterChange,
   onSortChange,
   onSelectAlert,
 }: AlertsTableProps) {
@@ -50,6 +55,16 @@ export function AlertsTable({
               </option>
             ))}
           </select>
+
+          <input
+            value={assignedToFilter}
+            onChange={(event) => {
+              onAssignedToFilterChange(event.target.value)
+              onPageChange(1)
+            }}
+            placeholder="assigned to…"
+            className="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-xs"
+          />
 
           <select
             value={sortBy}
@@ -97,10 +112,14 @@ export function AlertsTable({
                 >
                   <td className="py-2">{new Date(alert.created_at).toLocaleString()}</td>
                   <td className="py-2 uppercase">{alert.prediction_label}</td>
-                  <td className="py-2 uppercase">{alert.status}</td>
+                  <td className="py-2">
+                    <StatusBadge status={alert.status} />
+                  </td>
                   <td className="py-2">{alert.assigned_to ?? 'Unassigned'}</td>
                   <td className="py-2">{(alert.confidence * 100).toFixed(2)}%</td>
-                  <td className="py-2 uppercase">{alert.risk_level}</td>
+                  <td className="py-2">
+                    <RiskBadge risk={alert.risk_level} />
+                  </td>
                 </tr>
               ))}
             </tbody>

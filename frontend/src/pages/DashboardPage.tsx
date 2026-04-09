@@ -13,6 +13,7 @@ import {
   addAlertNote,
   assignAlert,
   fetchAlertDetail,
+  fetchAlertHistory,
   fetchHealth,
   fetchMe,
   fetchModelInfo,
@@ -26,6 +27,7 @@ import type {
   AlertDetailResponse,
   AlertRecord,
   AlertStatus,
+  AlertTriageEvent,
   HealthResponse,
   InferenceRequest,
   InferenceResponse,
@@ -43,6 +45,7 @@ export function DashboardPage() {
   const [health, setHealth] = useState<HealthResponse | null>(null)
   const [alerts, setAlerts] = useState<AlertRecord[]>([])
   const [alertDetail, setAlertDetail] = useState<AlertDetailResponse | null>(null)
+  const [triageHistory, setTriageHistory] = useState<AlertTriageEvent[]>([])
   const [principal, setPrincipal] = useState<UserPrincipal | null>(null)
 
   const [username, setUsername] = useState('analyst')
@@ -52,6 +55,7 @@ export function DashboardPage() {
   const [pageSize] = useState(10)
   const [total, setTotal] = useState(0)
   const [statusFilter, setStatusFilter] = useState('')
+  const [assignedToFilter, setAssignedToFilter] = useState('')
   const [sortBy, setSortBy] = useState('created_at')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
 
@@ -65,6 +69,7 @@ export function DashboardPage() {
           page: currentPage,
           pageSize,
           status: statusFilter || undefined,
+          assignedTo: assignedToFilter || undefined,
           sortBy,
           sortOrder,
         }),
@@ -84,7 +89,7 @@ export function DashboardPage() {
     if (!principal) return
     void loadDashboardData(page)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [principal, page, statusFilter, sortBy, sortOrder])
+  }, [principal, page, statusFilter, assignedToFilter, sortBy, sortOrder])
 
   async function handleLogin() {
     setError(null)
@@ -119,16 +124,18 @@ export function DashboardPage() {
 
   async function openAlert(alertId: number) {
     try {
-      const detail = await fetchAlertDetail(alertId)
+      const [detail, history] = await Promise.all([fetchAlertDetail(alertId), fetchAlertHistory(alertId)])
       setAlertDetail(detail)
+      setTriageHistory(history.events)
     } catch (apiError) {
       setError((apiError as Error).message)
     }
   }
 
   async function refreshAlertDetail(alertId: number) {
-    const detail = await fetchAlertDetail(alertId)
+    const [detail, history] = await Promise.all([fetchAlertDetail(alertId), fetchAlertHistory(alertId)])
     setAlertDetail(detail)
+    setTriageHistory(history.events)
     await loadDashboardData(page)
   }
 
@@ -227,10 +234,12 @@ export function DashboardPage() {
             page={page}
             pageSize={pageSize}
             statusFilter={statusFilter}
+            assignedToFilter={assignedToFilter}
             sortBy={sortBy}
             sortOrder={sortOrder}
             onPageChange={setPage}
             onStatusFilterChange={setStatusFilter}
+            onAssignedToFilterChange={setAssignedToFilter}
             onSortChange={(nextSortBy, nextSortOrder) => {
               setSortBy(nextSortBy)
               setSortOrder(nextSortOrder)
@@ -240,6 +249,7 @@ export function DashboardPage() {
         </div>
         <AlertDetailPanel
           detail={alertDetail}
+          triageHistory={triageHistory}
           role={principal.role}
           onUpdateStatus={handleStatusUpdate}
           onAssign={handleAssign}
