@@ -71,6 +71,24 @@ export interface AlertNote {
   created_at: string
 }
 
+export type TriageEventType = 'status_change' | 'assignment_change'
+
+export interface AlertTriageEvent {
+  id: number
+  alert_id: number
+  actor: string
+  event_type: TriageEventType
+  old_value: string | null
+  new_value: string
+  note: string | null
+  created_at: string
+}
+
+export interface AlertTriageHistoryResponse {
+  alert_id: number
+  events: AlertTriageEvent[]
+}
+
 export interface AlertRecord {
   id: number
   created_at: string

@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from backend.app.core.config import Settings
 from backend.app.db.sqlite import dump_json, load_json
 from backend.app.db.session import Database
-from backend.app.schemas.alert import AlertNote, AlertRecord, AlertStatus
+from backend.app.schemas.alert import AlertNote, AlertRecord, AlertStatus, AlertTriageEvent
 from backend.app.schemas.inference import InferenceRequest, InferenceResponse
 from backend.app.services.audit_service import AuditService
 
@@ -181,6 +181,8 @@ class AlertService:
     def update_status(self, alert_id: int, status: AlertStatus, actor: str) -> AlertRecord | None:
         placeholder = "%s" if self.db.driver != "sqlite" else "?"
         now_value = datetime.now(tz=timezone.utc)
+        old_record = self.get_alert(alert_id)
+        old_status = old_record.status if old_record else None
         with self.db.connection() as connection:
             connection.execute(
                 f"UPDATE alerts SET status = {placeholder}, updated_at = {placeholder} WHERE id = {placeholder}",
@@ -197,11 +199,20 @@ class AlertService:
                 outcome="success",
                 details={"status": status},
             )
+            self.record_triage_event(
+                alert_id=alert_id,
+                actor=actor,
+                event_type="status_change",
+                new_value=status,
+                old_value=old_status,
+            )
         return record
 
     def assign_alert(self, alert_id: int, assigned_to: str, actor: str) -> AlertRecord | None:
         placeholder = "%s" if self.db.driver != "sqlite" else "?"
         now_value = datetime.now(tz=timezone.utc)
+        old_record = self.get_alert(alert_id)
+        old_assignee = old_record.assigned_to if old_record else None
         with self.db.connection() as connection:
             connection.execute(
                 f"UPDATE alerts SET assigned_to = {placeholder}, updated_at = {placeholder} WHERE id = {placeholder}",
@@ -217,6 +228,13 @@ class AlertService:
                 resource_id=str(alert_id),
                 outcome="success",
                 details={"assigned_to": assigned_to},
+            )
+            self.record_triage_event(
+                alert_id=alert_id,
+                actor=actor,
+                event_type="assignment_change",
+                new_value=assigned_to,
+                old_value=old_assignee,
             )
         return record
 
@@ -265,6 +283,61 @@ class AlertService:
             note=note_row["note"],
             created_at=note_row["created_at"],
         )
+
+    def record_triage_event(
+        self,
+        alert_id: int,
+        actor: str,
+        event_type: str,
+        new_value: str,
+        old_value: str | None = None,
+        note: str | None = None,
+    ) -> None:
+        placeholder = "%s" if self.db.driver != "sqlite" else "?"
+        now_value = datetime.now(tz=timezone.utc)
+        with self.db.connection() as connection:
+            connection.execute(
+                f"""
+                INSERT INTO alert_triage_events (alert_id, actor, event_type, old_value, new_value, note, created_at)
+                VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
+                """,
+                (
+                    alert_id,
+                    actor,
+                    event_type,
+                    old_value,
+                    new_value,
+                    note,
+                    now_value.isoformat() if self.db.driver == "sqlite" else now_value,
+                ),
+            )
+            connection.commit()
+
+    def get_triage_history(self, alert_id: int) -> list[AlertTriageEvent]:
+        placeholder = "%s" if self.db.driver != "sqlite" else "?"
+        with self.db.connection() as connection:
+            rows = connection.execute(
+                f"""
+                SELECT id, alert_id, actor, event_type, old_value, new_value, note, created_at
+                FROM alert_triage_events
+                WHERE alert_id = {placeholder}
+                ORDER BY created_at ASC
+                """,
+                (alert_id,),
+            ).fetchall()
+        return [
+            AlertTriageEvent(
+                id=row["id"],
+                alert_id=row["alert_id"],
+                actor=row["actor"],
+                event_type=row["event_type"],
+                old_value=row["old_value"],
+                new_value=row["new_value"],
+                note=row["note"],
+                created_at=row["created_at"],
+            )
+            for row in rows
+        ]
 
     def get_notes(self, alert_id: int) -> list[AlertNote]:
         placeholder = "%s" if self.db.driver != "sqlite" else "?"

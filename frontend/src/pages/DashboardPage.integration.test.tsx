@@ -12,6 +12,7 @@ const mockApi = vi.hoisted(() => ({
   fetchRecentAlerts: vi.fn(),
   predict: vi.fn(),
   fetchAlertDetail: vi.fn(),
+  fetchAlertHistory: vi.fn(),
   updateAlertStatus: vi.fn(),
   assignAlert: vi.fn(),
   addAlertNote: vi.fn(),
@@ -76,6 +77,7 @@ describe('DashboardPage integration', () => {
       },
       notes: [],
     })
+    mockApi.fetchAlertHistory.mockResolvedValue({ alert_id: 1, events: [] })
     mockApi.updateAlertStatus.mockResolvedValue({})
 
     render(<DashboardPage />)
@@ -83,9 +85,16 @@ describe('DashboardPage integration', () => {
     fireEvent.click(screen.getByText('Sign in'))
 
     await waitFor(() => expect(screen.getByText(/Logged in as analyst/)).toBeInTheDocument())
-    await waitFor(() => expect(screen.getByText(/Alert #1/)).toBeInTheDocument())
 
-    fireEvent.click(screen.getByText('acknowledged'))
+    // Wait for the alert table row to render then click it to open the detail panel
+    await waitFor(() => expect(screen.getByText('malicious')).toBeInTheDocument())
+    fireEvent.click(screen.getByText('malicious'))
+
+    // Detail panel heading should now be visible
+    await waitFor(() => expect(screen.getByText('Alert #1')).toBeInTheDocument())
+
+    // Click the "acknowledged" transition button
+    fireEvent.click(screen.getByRole('button', { name: 'acknowledged' }))
 
     await waitFor(() => expect(mockApi.updateAlertStatus).toHaveBeenCalledWith(1, 'acknowledged'))
   })

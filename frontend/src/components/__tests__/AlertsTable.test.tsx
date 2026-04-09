@@ -24,10 +24,12 @@ const defaultProps = {
   page: 1,
   pageSize: 10,
   statusFilter: '',
+  assignedToFilter: '',
   sortBy: 'created_at',
   sortOrder: 'desc' as const,
   onPageChange: vi.fn(),
   onStatusFilterChange: vi.fn(),
+  onAssignedToFilterChange: vi.fn(),
   onSortChange: vi.fn(),
   onSelectAlert: vi.fn(),
 }
@@ -50,9 +52,14 @@ describe('AlertsTable', () => {
     expect(rows).toHaveLength(4)
   })
 
-  it('shows risk and status columns', () => {
+  it('shows risk and status badges with text', () => {
     render(<AlertsTable {...defaultProps} alerts={[makeAlert({ risk_level: 'high', status: 'escalated' })]} total={1} />)
     expect(screen.getByText('high')).toBeInTheDocument()
     expect(screen.getByText('escalated')).toBeInTheDocument()
+  })
+
+  it('renders assigned_to filter input', () => {
+    render(<AlertsTable {...defaultProps} />)
+    expect(screen.getByPlaceholderText('assigned to…')).toBeInTheDocument()
   })
 })
