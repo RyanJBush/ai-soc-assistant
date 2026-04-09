@@ -3,7 +3,7 @@ from pydantic import ValidationError
 
 from backend.app.schemas.alert import RecentAlertsResponse
 from backend.app.schemas.inference import InferenceRequest, TopContributor
-from backend.app.schemas.model_info import ModelInfoResponse
+from backend.app.schemas.model_info import ModelInfoResponse, ModelLineage, ModelThresholds, MonitoringHookInfo
 
 _VALID = dict(
     duration=0,
@@ -106,6 +106,22 @@ def test_model_info_response_round_trips() -> None:
         training_rows=1000,
         test_rows=200,
         metrics={"precision": 0.95, "recall": 0.93},
+        thresholds=ModelThresholds(
+            malicious_decision_threshold=0.5,
+            risk_threshold_medium=0.5,
+            risk_threshold_high=0.8,
+            risk_threshold_critical=0.93,
+        ),
+        lineage=ModelLineage(
+            artifact_path="a.joblib",
+            artifact_sha256="abc",
+            metrics_path="m.json",
+            metrics_sha256="def",
+        ),
+        monitoring=MonitoringHookInfo(
+            monitoring_endpoint="/monitoring/events",
+            supported_event_types=["drift.feature_shift"],
+        ),
     )
     assert info.model_name == "random_forest"
     assert info.metrics["precision"] == 0.95

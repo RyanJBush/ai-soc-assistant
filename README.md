@@ -1,156 +1,121 @@
 # AI SOC Assistant
 
-A production-oriented, portfolio-ready **AI SOC Assistant** for security operations workflows.
+Production-style SOC platform for ML-assisted alert scoring, analyst triage workflows, and security operations visibility.
 
-It helps analysts:
-- score suspicious network/security events,
-- triage risk quickly,
-- inspect model confidence,
-- review recent alert activity in a SOC-style dashboard.
+## Quick recruiter snapshot
 
----
-
-## Overview
-
-This project is intentionally positioned as a **SOC analyst support application**, not a generic chatbot.
-It combines ML-assisted detection, typed APIs, alert persistence, and an analyst-friendly frontend.
-
----
-
-## Features
-
-- **ML-assisted scoring** for IDS-style events via `/predict`
-- **Risk + confidence outputs** (`low` / `medium` / `high`)
-- **Recent alert history** via `/alerts/recent`
-- **Model metadata endpoint** via `/model-info`
-- **Health visibility** via `/health`
-- **SOC dashboard UI** with:
-  - summary cards,
-  - event scoring form,
-  - prediction panel,
-  - recent alerts table,
-  - model metrics,
-  - health + activity panels
+- ✅ FastAPI backend with typed APIs, RBAC, audit logging, migration-backed persistence
+- ✅ React/Vite SOC dashboard with login, triage, status transitions, assignment, and notes
+- ✅ PostgreSQL-first architecture with SQLite local fallback
+- ✅ Model observability: lineage (hashes), thresholds, monitoring hooks
+- ✅ CI checks, coverage gates, and smoke script
 
 ---
 
 ## Architecture
 
-- **Backend:** FastAPI + Pydantic + service modules
-- **ML/Data:** scikit-learn + pandas + numpy + joblib
-- **DB:** SQLite local fallback, PostgreSQL-ready architecture
-- **Frontend:** React + Vite + TypeScript + Tailwind + Recharts
-- **Tooling:** pytest, ruff, eslint, prettier, GitHub Actions
+![Architecture](docs/assets/architecture/ai-soc-assistant-architecture.png)
 
-Architecture docs:
+> Add architecture image files under `docs/assets/architecture/`.
+
+Core docs:
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - [docs/API_SPEC.md](docs/API_SPEC.md)
-- [docs/PORTS.md](docs/PORTS.md)
+- [DEPLOYMENT.md](DEPLOYMENT.md)
+- [RUNBOOK.md](RUNBOOK.md)
 
 ---
 
-## Screenshots (Placeholders)
+## Demo assets
 
-> Add screenshots after deployment demo capture.
+- Dashboard screenshots: `docs/screenshots/`
+- Demo GIFs: `docs/assets/demo/`
 
-- `docs/screenshots/dashboard-overview.png`
-- `docs/screenshots/prediction-result.png`
-- `docs/screenshots/recent-alerts.png`
+Example embeds (once assets are added):
+
+![Triage Flow](docs/assets/demo/triage-flow.gif)
+![Model Observability](docs/assets/demo/model-observability.gif)
 
 ---
 
-## Quick Start
+## Local setup
 
-### 1) Backend
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -r backend/requirements.txt
-```
-
-### 2) Train model artifacts
-```bash
 python backend/scripts/train_model.py
-```
-
-### 3) Run backend
-```bash
 uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### 4) Run frontend
+Frontend:
+
 ```bash
 cd frontend
 npm ci
 npm run dev
 ```
 
----
-
-## Docker
-
-Build and run full stack:
-```bash
-docker compose up --build
-```
-
-Stop services:
-```bash
-docker compose down
-```
+Demo credentials:
+- `admin / admin123!`
+- `analyst / analyst123!`
+- `viewer / viewer123!`
 
 ---
 
-## API
+## Deployment manifests and env templates
 
-Base URL (local): `http://localhost:8000`
-
-- `GET /health`
-- `GET /model-info`
-- `POST /predict`
-- `GET /alerts/recent`
-
-See full examples in [docs/API_SPEC.md](docs/API_SPEC.md).
+- Render backend: `deploy/render.yaml`
+- Vercel frontend: `frontend/vercel.json`
+- Env templates:
+  - `.env.example`
+  - `.env.staging.example`
+  - `.env.production.example`
 
 ---
 
-## Testing
+## Quality gates
 
 Backend:
 ```bash
-PYTHONPATH=. pytest backend/tests -q
-ruff check backend/app
+make backend-test-coverage
 ```
 
 Frontend:
 ```bash
 cd frontend
 npm run lint
-npm run test
+npm run test:coverage
 npm run build
 ```
 
----
+Smoke test:
+```bash
+make smoke-test
+```
 
-## Deployment
-
-Deployment playbook for Render/Railway + Vercel/Netlify:
-- [DEPLOYMENT.md](DEPLOYMENT.md)
-
----
-
-## Limitations
-
-- Baseline model is portfolio-grade, not enterprise production SOC automation.
-- SQLite is used by default for local simplicity; PostgreSQL should be used in production.
-- Explainability is currently heuristic contributor scoring.
-- No enterprise IAM/RBAC or automated response orchestration in MVP.
+CI workflow: `.github/workflows/ci.yml`
 
 ---
 
-## Resume Highlights
+## Why this is production-ready (for portfolio/recruiter review)
 
-- Built an end-to-end AI SOC Assistant (FastAPI, scikit-learn, React/TypeScript) for event triage and alert visibility.
-- Designed typed API contracts and modular service architecture for scoring, metadata, and recent alerts.
-- Implemented a SOC-style dashboard surfacing model confidence, risk levels, and recent suspicious activity.
-- Added deterministic backend API tests and CI-ready lint/test/build workflow.
+1. **Security controls in place**
+   - Authenticated endpoints, RBAC, auditability, rate limiting.
+2. **Operational realism**
+   - DB migrations, structured logs with request IDs, smoke checks, runbook.
+3. **Analyst workflow depth**
+   - Stateful alert lifecycle, ownership, comments, and triage-focused UI.
+4. **ML transparency**
+   - Explanations, configurable thresholding, model lineage, monitoring hooks.
+5. **Engineering quality**
+   - Automated tests, CI checks, coverage gates, clear deployment templates.
+
+---
+
+## Tradeoffs and remaining gaps
+
+- Uses demo/local auth user source (not full enterprise IdP/SSO integration yet).
+- Drift/performance monitoring hooks exist, but automated retraining/remediation orchestration is still manual.
+- Frontend E2E browser automation can be expanded further (currently integration-level coverage).
+- Advanced incident response playbooks and SOAR actions are out of scope for this repo phase.

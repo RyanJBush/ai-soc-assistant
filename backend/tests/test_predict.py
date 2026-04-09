@@ -6,6 +6,7 @@ from backend.app.api.routes_predict import get_alert_service, get_prediction_ser
 from backend.app.core.exceptions import ModelNotLoadedError, PredictionError
 from backend.app.main import app
 from backend.app.schemas.inference import InferenceResponse, TopContributor
+from backend.tests.conftest import auth_headers
 
 
 class StubPredictionService:
@@ -22,7 +23,7 @@ class StubPredictionService:
 
 
 class StubAlertService:
-    def create_alert(self, request, response):
+    def create_alert(self, request, response, actor="system"):
         return None
 
     def get_recent_alerts(self, limit: int):
@@ -49,7 +50,7 @@ def test_predict_endpoint_returns_structured_response() -> None:
         "dst_host_srv_count": 20,
     }
 
-    response = client.post("/predict", json=payload)
+    response = client.post("/predict", json=payload, headers=auth_headers(client))
     assert response.status_code == 200
 
     body = response.json()
@@ -85,7 +86,7 @@ def test_predict_endpoint_returns_503_when_model_not_loaded() -> None:
         "dst_host_srv_count": 1,
     }
 
-    response = client.post("/predict", json=payload)
+    response = client.post("/predict", json=payload, headers=auth_headers(client))
     assert response.status_code == 503
     body = response.json()
     assert body["error_code"] == "MODEL_NOT_LOADED"
@@ -118,7 +119,7 @@ def test_predict_endpoint_returns_500_on_prediction_error() -> None:
         "dst_host_srv_count": 1,
     }
 
-    response = client.post("/predict", json=payload)
+    response = client.post("/predict", json=payload, headers=auth_headers(client))
     assert response.status_code == 500
     body = response.json()
     assert body["error_code"] == "PREDICTION_FAILED"
@@ -129,7 +130,7 @@ def test_predict_endpoint_returns_500_on_prediction_error() -> None:
 
 def test_predict_endpoint_returns_422_for_invalid_payload() -> None:
     client = TestClient(app)
-    response = client.post("/predict", json={"duration": -1, "protocol_type": "ftp"})
+    response = client.post("/predict", json={"duration": -1, "protocol_type": "ftp"}, headers=auth_headers(client))
     assert response.status_code == 422
 
 
@@ -137,9 +138,11 @@ def test_recent_alerts_endpoint_shape() -> None:
     app.dependency_overrides[get_alert_service] = lambda: StubAlertService()
     client = TestClient(app)
 
-    response = client.get("/alerts/recent?limit=5")
+    response = client.get("/alerts/recent?limit=5", headers=auth_headers(client, "viewer", "viewer123!"))
     assert response.status_code == 200
-    assert response.json() == {"alerts": []}
+    body = response.json()
+    assert body["alerts"] == []
+    assert body["total"] == 0
 
     app.dependency_overrides.clear()
 
@@ -148,7 +151,7 @@ def test_recent_alerts_default_limit_is_within_bounds() -> None:
     app.dependency_overrides[get_alert_service] = lambda: StubAlertService()
     client = TestClient(app)
 
-    response = client.get("/alerts/recent")
+    response = client.get("/alerts/recent", headers=auth_headers(client, "viewer", "viewer123!"))
     assert response.status_code == 200
 
     app.dependency_overrides.clear()
@@ -158,7 +161,7 @@ def test_recent_alerts_rejects_limit_below_minimum() -> None:
     app.dependency_overrides[get_alert_service] = lambda: StubAlertService()
     client = TestClient(app)
 
-    response = client.get("/alerts/recent?limit=0")
+    response = client.get("/alerts/recent?limit=0", headers=auth_headers(client, "viewer", "viewer123!"))
     assert response.status_code == 422
 
     app.dependency_overrides.clear()
@@ -168,7 +171,7 @@ def test_recent_alerts_rejects_limit_above_maximum() -> None:
     app.dependency_overrides[get_alert_service] = lambda: StubAlertService()
     client = TestClient(app)
 
-    response = client.get("/alerts/recent?limit=201")
+    response = client.get("/alerts/recent?limit=201", headers=auth_headers(client, "viewer", "viewer123!"))
     assert response.status_code == 422
 
     app.dependency_overrides.clear()

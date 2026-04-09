@@ -7,7 +7,7 @@ on:
 
 jobs:
   backend:
-    name: Backend — lint & test
+    name: Backend — lint, tests, coverage gate
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -32,11 +32,17 @@ jobs:
       - name: Lint (ruff)
         run: make backend-lint
 
-      - name: Test (pytest)
-        run: make backend-test
+      - name: Test with coverage gate
+        run: make backend-test-coverage
+
+      - name: Upload backend coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage-xml
+          path: coverage.xml
 
   frontend:
-    name: Frontend — lint, test & build
+    name: Frontend — lint, test, coverage, build
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -56,8 +62,27 @@ jobs:
       - name: Lint (eslint)
         run: make frontend-lint
 
-      - name: Test (vitest)
-        run: make frontend-test
+      - name: Test with coverage gate
+        run: make frontend-test-coverage
 
       - name: Build (vite)
         run: make frontend-build
+
+  smoke:
+    name: Deployment smoke script
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install backend deps
+        run: make backend-install
+
+      - name: Run smoke test script
+        run: make smoke-test

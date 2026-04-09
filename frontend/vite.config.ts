@@ -9,6 +9,10 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.ts'],
     coverage: {
       reporter: ['text', 'lcov'],
+      lines: 60,
+      functions: 60,
+      branches: 45,
+      statements: 60,
     },
   },
 })

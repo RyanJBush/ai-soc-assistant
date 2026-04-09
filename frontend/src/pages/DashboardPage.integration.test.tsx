@@ -1,0 +1,92 @@
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
+
+import { DashboardPage } from './DashboardPage'
+
+const mockApi = vi.hoisted(() => ({
+  login: vi.fn(),
+  setAuthToken: vi.fn(),
+  fetchMe: vi.fn(),
+  fetchHealth: vi.fn(),
+  fetchModelInfo: vi.fn(),
+  fetchRecentAlerts: vi.fn(),
+  predict: vi.fn(),
+  fetchAlertDetail: vi.fn(),
+  updateAlertStatus: vi.fn(),
+  assignAlert: vi.fn(),
+  addAlertNote: vi.fn(),
+}))
+
+vi.mock('../lib/api', () => ({
+  ...mockApi,
+}))
+
+describe('DashboardPage integration', () => {
+  it('supports login and alert status triage flow', async () => {
+    mockApi.login.mockResolvedValue({ access_token: 'token', role: 'analyst', token_type: 'bearer', expires_at: 'x' })
+    mockApi.fetchMe.mockResolvedValue({ username: 'analyst', role: 'analyst' })
+    mockApi.fetchHealth.mockResolvedValue({ status: 'ok' })
+    mockApi.fetchModelInfo.mockResolvedValue({
+      model_name: 'rf',
+      model_version: 'rf-v2',
+      selected_features: ['src_bytes'],
+      training_rows: 1,
+      test_rows: 1,
+      metrics: { precision: 1 },
+      thresholds: {
+        malicious_decision_threshold: 0.5,
+        risk_threshold_medium: 0.5,
+        risk_threshold_high: 0.8,
+        risk_threshold_critical: 0.93,
+      },
+      lineage: { artifact_path: 'a', artifact_sha256: 'abc', metrics_path: 'm', metrics_sha256: 'def' },
+      monitoring: { monitoring_endpoint: '/monitoring/events', supported_event_types: ['drift.feature_shift'] },
+    })
+    mockApi.fetchRecentAlerts.mockResolvedValue({
+      alerts: [
+        {
+          id: 1,
+          created_at: '2026-01-01T00:00:00Z',
+          updated_at: '2026-01-01T00:00:00Z',
+          prediction_label: 'malicious',
+          confidence: 0.9,
+          risk_level: 'high',
+          status: 'new',
+          assigned_to: null,
+          top_contributors: [{ feature: 'src_bytes', impact: 1 }],
+          input_snapshot: {},
+        },
+      ],
+      total: 1,
+      page: 1,
+      page_size: 10,
+    })
+    mockApi.fetchAlertDetail.mockResolvedValue({
+      alert: {
+        id: 1,
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z',
+        prediction_label: 'malicious',
+        confidence: 0.9,
+        risk_level: 'high',
+        status: 'new',
+        assigned_to: null,
+        top_contributors: [{ feature: 'src_bytes', impact: 1 }],
+        input_snapshot: {},
+      },
+      notes: [],
+    })
+    mockApi.updateAlertStatus.mockResolvedValue({})
+
+    render(<DashboardPage />)
+
+    fireEvent.click(screen.getByText('Sign in'))
+
+    await waitFor(() => expect(screen.getByText(/Logged in as analyst/)).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText(/Alert #1/)).toBeInTheDocument())
+
+    fireEvent.click(screen.getByText('acknowledged'))
+
+    await waitFor(() => expect(mockApi.updateAlertStatus).toHaveBeenCalledWith(1, 'acknowledged'))
+  })
+})
