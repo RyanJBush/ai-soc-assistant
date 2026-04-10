@@ -29,6 +29,11 @@ const makeModelInfo = (overrides: Partial<ModelInfoResponse> = {}): ModelInfoRes
     roc_auc: 0.98,
     false_positive_rate: 0.02,
   },
+  explainability: {
+    supported_methods: ['feature_importance', 'sensitivity', 'feature_importance+sensitivity', 'heuristic'],
+    primary_method: 'feature_importance+sensitivity',
+    description: 'Blended global feature importances with local sensitivity analysis.',
+  },
   ...overrides,
 })
 
@@ -61,5 +66,25 @@ describe('MetricsPanel', () => {
   it('renders the bar chart element', () => {
     render(<MetricsPanel modelInfo={makeModelInfo()} />)
     expect(screen.getByTestId('bar-chart')).toBeInTheDocument()
+  })
+
+  it('renders the explainability section heading', () => {
+    render(<MetricsPanel modelInfo={makeModelInfo()} />)
+    expect(screen.getByText('Explainability')).toBeInTheDocument()
+  })
+
+  it('renders the primary explainability method', () => {
+    render(<MetricsPanel modelInfo={makeModelInfo()} />)
+    expect(screen.getByText('feature_importance+sensitivity')).toBeInTheDocument()
+  })
+
+  it('renders the explainability description', () => {
+    render(<MetricsPanel modelInfo={makeModelInfo()} />)
+    expect(screen.getByText(/Blended global feature importances/)).toBeInTheDocument()
+  })
+
+  it('renders supported methods list', () => {
+    render(<MetricsPanel modelInfo={makeModelInfo()} />)
+    expect(screen.getByText(/heuristic/)).toBeInTheDocument()
   })
 })

@@ -28,7 +28,8 @@ class InferenceResponse(BaseModel):
     prediction_label: Literal["benign", "malicious"]
     malicious_probability: float = Field(ge=0.0, le=1.0)
     confidence: float = Field(ge=0.0, le=1.0)
-    risk_level: Literal["low", "medium", "high"]
+    risk_level: Literal["low", "medium", "high", "critical"]
     top_contributors: list[TopContributor]
+    explain_method: str
     model_version: str
     timestamp: datetime

@@ -20,6 +20,7 @@ const makePrediction = (overrides: Partial<InferenceResponse> = {}): InferenceRe
     { feature: 'src_bytes', impact: 1.0 },
     { feature: 'dst_bytes', impact: 0.6 },
   ],
+  explain_method: 'heuristic',
   model_version: 'random_forest_v1',
   timestamp: '2024-01-15T10:00:00Z',
   ...overrides,
@@ -52,6 +53,27 @@ describe('PredictionCard', () => {
     expect(screen.getByText('high')).toBeInTheDocument()
     const el = screen.getByText('high')
     expect(el.className).toMatch(/uppercase/)
+  })
+
+  it('renders critical risk level with red styling', () => {
+    const { container } = render(
+      <PredictionCard prediction={makePrediction({ risk_level: 'critical' })} />,
+    )
+    expect(screen.getByText('critical')).toBeInTheDocument()
+    expect(container.innerHTML).toMatch(/red/)
+  })
+
+  it('renders medium risk level with yellow styling', () => {
+    const { container } = render(
+      <PredictionCard prediction={makePrediction({ risk_level: 'medium' })} />,
+    )
+    expect(screen.getByText('medium')).toBeInTheDocument()
+    expect(container.innerHTML).toMatch(/yellow/)
+  })
+
+  it('displays the explain_method', () => {
+    render(<PredictionCard prediction={makePrediction({ explain_method: 'feature_importance+sensitivity' })} />)
+    expect(screen.getByText(/feature_importance\+sensitivity/)).toBeInTheDocument()
   })
 
   it('renders model version', () => {

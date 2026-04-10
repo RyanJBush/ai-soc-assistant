@@ -4,6 +4,13 @@ interface PredictionCardProps {
   prediction: InferenceResponse | null
 }
 
+const RISK_STYLES: Record<string, string> = {
+  low: 'text-emerald-400 border-emerald-700 bg-emerald-950/30',
+  medium: 'text-yellow-400 border-yellow-700 bg-yellow-950/30',
+  high: 'text-orange-400 border-orange-700 bg-orange-950/30',
+  critical: 'text-red-400 border-red-700 bg-red-950/30',
+}
+
 export function PredictionCard({ prediction }: PredictionCardProps) {
   if (!prediction) {
     return <div className="rounded-lg border border-slate-700 bg-slate-900/70 p-4 text-sm">No prediction yet.</div>
@@ -13,6 +20,8 @@ export function PredictionCard({ prediction }: PredictionCardProps) {
     prediction.prediction_label === 'malicious'
       ? 'text-red-400 border-red-700 bg-red-950/30'
       : 'text-emerald-400 border-emerald-700 bg-emerald-950/30'
+
+  const riskStyle = RISK_STYLES[prediction.risk_level] ?? RISK_STYLES.high
 
   return (
     <section className="rounded-lg border border-slate-700 bg-slate-900/70 p-4">
@@ -31,7 +40,7 @@ export function PredictionCard({ prediction }: PredictionCardProps) {
         </div>
         <div>
           <dt className="text-slate-400">Risk Level</dt>
-          <dd className="uppercase">{prediction.risk_level}</dd>
+          <dd className={`inline-block rounded px-1 font-semibold uppercase ${riskStyle}`}>{prediction.risk_level}</dd>
         </div>
         <div>
           <dt className="text-slate-400">Model Version</dt>
@@ -46,6 +55,11 @@ export function PredictionCard({ prediction }: PredictionCardProps) {
           </li>
         ))}
       </ul>
+      {prediction.explain_method && (
+        <p className="mt-3 text-xs text-slate-400">
+          Explain method: <span className="font-mono">{prediction.explain_method}</span>
+        </p>
+      )}
     </section>
   )
 }

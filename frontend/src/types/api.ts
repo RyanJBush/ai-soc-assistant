@@ -1,4 +1,4 @@
-export type RiskLevel = 'low' | 'medium' | 'high'
+export type RiskLevel = 'low' | 'medium' | 'high' | 'critical'
 export type AlertStatus = 'new' | 'acknowledged' | 'escalated' | 'resolved'
 
 export interface InferenceRequest {
@@ -27,6 +27,7 @@ export interface InferenceResponse {
   confidence: number
   risk_level: RiskLevel
   top_contributors: TopContributor[]
+  explain_method: string
   model_version: string
   timestamp: string
 }
@@ -51,6 +52,12 @@ export interface MonitoringHookInfo {
   supported_event_types: string[]
 }
 
+export interface ExplainabilityInfo {
+  supported_methods: string[]
+  primary_method: string
+  description: string
+}
+
 export interface ModelInfoResponse {
   model_name: string
   model_version: string
@@ -61,6 +68,7 @@ export interface ModelInfoResponse {
   thresholds: ModelThresholds
   lineage: ModelLineage
   monitoring: MonitoringHookInfo
+  explainability: ExplainabilityInfo
 }
 
 export interface AlertNote {

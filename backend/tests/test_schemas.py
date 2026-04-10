@@ -3,7 +3,7 @@ from pydantic import ValidationError
 
 from backend.app.schemas.alert import RecentAlertsResponse
 from backend.app.schemas.inference import InferenceRequest, TopContributor
-from backend.app.schemas.model_info import ModelInfoResponse, ModelLineage, ModelThresholds, MonitoringHookInfo
+from backend.app.schemas.model_info import ExplainabilityInfo, ModelInfoResponse, ModelLineage, ModelThresholds, MonitoringHookInfo
 
 _VALID = dict(
     duration=0,
@@ -122,9 +122,15 @@ def test_model_info_response_round_trips() -> None:
             monitoring_endpoint="/monitoring/events",
             supported_event_types=["drift.feature_shift"],
         ),
+        explainability=ExplainabilityInfo(
+            supported_methods=["feature_importance", "heuristic"],
+            primary_method="feature_importance+sensitivity",
+            description="Blended feature importance and sensitivity analysis.",
+        ),
     )
     assert info.model_name == "random_forest"
     assert info.metrics["precision"] == 0.95
+    assert info.explainability.primary_method == "feature_importance+sensitivity"
 
 
 def test_recent_alerts_response_empty() -> None:

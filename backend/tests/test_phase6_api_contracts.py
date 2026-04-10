@@ -20,6 +20,7 @@ class DeterministicPredictionService:
             confidence=0.91,
             risk_level="high",
             top_contributors=[TopContributor(feature="src_bytes", impact=1.0)],
+            explain_method="heuristic",
             model_version="phase6-test-model",
             timestamp=datetime(2026, 4, 7, tzinfo=timezone.utc),
         )

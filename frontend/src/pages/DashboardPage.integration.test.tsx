@@ -42,6 +42,11 @@ describe('DashboardPage integration', () => {
       },
       lineage: { artifact_path: 'a', artifact_sha256: 'abc', metrics_path: 'm', metrics_sha256: 'def' },
       monitoring: { monitoring_endpoint: '/monitoring/events', supported_event_types: ['drift.feature_shift'] },
+      explainability: {
+        supported_methods: ['feature_importance', 'heuristic'],
+        primary_method: 'feature_importance+sensitivity',
+        description: 'Blended feature importance and sensitivity analysis.',
+      },
     })
     mockApi.fetchRecentAlerts.mockResolvedValue({
       alerts: [
