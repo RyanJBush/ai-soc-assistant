@@ -13,6 +13,8 @@ import { TrafficInputForm } from '../components/TrafficInputForm'
 import {
   addAlertNote,
   assignAlert,
+  bulkUpdateAlerts,
+  exportAlertsUrl,
   fetchAlertDetail,
   fetchAlertHistory,
   fetchAnalytics,
@@ -191,6 +193,16 @@ export function DashboardPage() {
     }
   }
 
+  async function handleBulkUpdate(alertIds: number[], status: AlertStatus) {
+    try {
+      const result = await bulkUpdateAlerts(alertIds, status)
+      setSuccess(`Bulk update: ${result.updated} updated${result.not_found.length ? `, ${result.not_found.length} not found` : ''}`)
+      await Promise.all([loadDashboardData(page), loadAnalytics(analyticsDays)])
+    } catch (apiError) {
+      setError((apiError as Error).message)
+    }
+  }
+
   if (!principal) {
     return (
       <main className="min-h-screen bg-slate-950 px-4 py-6 text-slate-100 md:px-8">
@@ -260,6 +272,7 @@ export function DashboardPage() {
             assignedToFilter={assignedToFilter}
             sortBy={sortBy}
             sortOrder={sortOrder}
+            exportUrl={exportAlertsUrl({ status: statusFilter || undefined, assignedTo: assignedToFilter || undefined })}
             onPageChange={setPage}
             onStatusFilterChange={setStatusFilter}
             onAssignedToFilterChange={setAssignedToFilter}
@@ -268,6 +281,7 @@ export function DashboardPage() {
               setSortOrder(nextSortOrder)
             }}
             onSelectAlert={(id) => void openAlert(id)}
+            onBulkUpdate={handleBulkUpdate}
           />
         </div>
         <AlertDetailPanel

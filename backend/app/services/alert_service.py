@@ -361,3 +361,77 @@ class AlertService:
             )
             for row in rows
         ]
+
+    def bulk_update_status(
+        self,
+        alert_ids: list[int],
+        status: AlertStatus,
+        actor: str,
+    ) -> tuple[int, list[int]]:
+        """Update status for multiple alerts atomically.
+
+        Returns (updated_count, not_found_ids).
+        """
+        updated = 0
+        not_found: list[int] = []
+        for alert_id in alert_ids:
+            result = self.update_status(alert_id, status, actor=actor)
+            if result is None:
+                not_found.append(alert_id)
+            else:
+                updated += 1
+        return updated, not_found
+
+    def export_alerts_csv(
+        self,
+        *,
+        status: AlertStatus | None = None,
+        assigned_to: str | None = None,
+        sort_by: str = "created_at",
+        sort_order: str = "desc",
+    ) -> list[AlertRecord]:
+        """Return all matching alerts (no pagination) for CSV export."""
+        allowed_sort = {"created_at", "confidence", "risk_level", "status", "updated_at"}
+        sort_key = sort_by if sort_by in allowed_sort else "created_at"
+        order = "ASC" if sort_order.lower() == "asc" else "DESC"
+
+        filters: list[str] = []
+        params: list[object] = []
+        placeholder = "%s" if self.db.driver != "sqlite" else "?"
+
+        if status:
+            filters.append(f"status = {placeholder}")
+            params.append(status)
+        if assigned_to:
+            filters.append(f"assigned_to = {placeholder}")
+            params.append(assigned_to)
+
+        where_clause = f"WHERE {' AND '.join(filters)}" if filters else ""
+        query = f"""
+            SELECT id, created_at, updated_at, prediction_label, confidence, risk_level,
+                   malicious_probability, model_version, status, assigned_to,
+                   input_snapshot_json, contributors_json
+            FROM alerts
+            {where_clause}
+            ORDER BY {sort_key} {order}
+        """
+        with self.db.connection() as connection:
+            rows = connection.execute(query, tuple(params)).fetchall()
+
+        return [
+            AlertRecord(
+                id=row["id"],
+                created_at=row["created_at"],
+                updated_at=row["updated_at"],
+                prediction_label=row["prediction_label"],
+                confidence=row["confidence"],
+                risk_level=row["risk_level"],
+                malicious_probability=row["malicious_probability"],
+                model_version=row["model_version"],
+                status=row["status"],
+                assigned_to=row["assigned_to"],
+                top_contributors=load_json(row["contributors_json"]) if row["contributors_json"] else [],
+                input_snapshot=load_json(row["input_snapshot_json"]),
+            )
+            for row in rows
+        ]

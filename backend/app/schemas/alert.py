@@ -68,3 +68,13 @@ class AssignAlertRequest(BaseModel):
 
 class AddAlertNoteRequest(BaseModel):
     note: str = Field(min_length=1, max_length=2000)
+
+
+class BulkUpdateRequest(BaseModel):
+    alert_ids: list[int] = Field(min_length=1, max_length=100)
+    status: AlertStatus
+
+
+class BulkUpdateResponse(BaseModel):
+    updated: int
+    not_found: list[int]

@@ -136,6 +136,16 @@ export interface MonitoringEventsResponse {
   events: MonitoringEventRecord[]
 }
 
+export interface BulkUpdateRequest {
+  alert_ids: number[]
+  status: AlertStatus
+}
+
+export interface BulkUpdateResponse {
+  updated: number
+  not_found: number[]
+}
+
 export interface DailyVolume {
   date: string
   count: number

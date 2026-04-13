@@ -9,6 +9,7 @@ Production-style SOC platform for ML-assisted alert scoring, analyst triage work
 - ✅ PostgreSQL-first architecture with SQLite local fallback
 - ✅ Model observability: lineage (hashes), thresholds, monitoring hooks
 - ✅ **Analytics & Reporting**: rolling KPIs (MTTR, malicious rate, risk/status breakdown) with recharts visualizations
+- ✅ **Bulk Operations & CSV Export**: mass-resolve/acknowledge alerts, streaming CSV export with filter/sort params
 - ✅ CI checks, coverage gates, and smoke script
 
 ---

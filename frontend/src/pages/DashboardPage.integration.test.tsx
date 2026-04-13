@@ -16,6 +16,20 @@ const mockApi = vi.hoisted(() => ({
   updateAlertStatus: vi.fn(),
   assignAlert: vi.fn(),
   addAlertNote: vi.fn(),
+  fetchAnalytics: vi.fn().mockResolvedValue({
+    days: 14,
+    total_alerts: 0,
+    malicious_count: 0,
+    benign_count: 0,
+    open_count: 0,
+    malicious_rate: 0,
+    avg_resolution_hours: null,
+    by_risk_level: { low: 0, medium: 0, high: 0, critical: 0 },
+    by_status: { new: 0, acknowledged: 0, escalated: 0, resolved: 0 },
+    alert_volume_by_day: [],
+  }),
+  bulkUpdateAlerts: vi.fn().mockResolvedValue({ updated: 0, not_found: [] }),
+  exportAlertsUrl: vi.fn().mockReturnValue('http://localhost:8000/alerts/export'),
 }))
 
 vi.mock('../lib/api', () => ({
