@@ -23,6 +23,12 @@ class MonitoringHookInfo(BaseModel):
     supported_event_types: list[str]
 
 
+class ExplainabilityInfo(BaseModel):
+    supported_methods: list[str]
+    primary_method: str
+    description: str
+
+
 class ModelInfoResponse(BaseModel):
     model_name: str
     model_version: str
@@ -33,3 +39,4 @@ class ModelInfoResponse(BaseModel):
     thresholds: ModelThresholds
     lineage: ModelLineage
     monitoring: MonitoringHookInfo
+    explainability: ExplainabilityInfo

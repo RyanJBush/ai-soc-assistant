@@ -19,6 +19,7 @@ class StubPredictionService:
             confidence=0.9,
             risk_level="high",
             top_contributors=[TopContributor(feature="src_bytes", impact=1.0)],
+            explain_method="heuristic",
             model_version="stub-model",
             timestamp=datetime.now(tz=timezone.utc),
         )

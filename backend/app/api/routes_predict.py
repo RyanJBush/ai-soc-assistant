@@ -1,6 +1,9 @@
+import csv
+import io
 import logging
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 
 from backend.app.core.auth import require_roles
 from backend.app.core.config import Settings, get_settings
@@ -9,6 +12,8 @@ from backend.app.schemas.alert import (
     AlertDetailResponse,
     AlertTriageHistoryResponse,
     AssignAlertRequest,
+    BulkUpdateRequest,
+    BulkUpdateResponse,
     RecentAlertsResponse,
     UpdateAlertStatusRequest,
 )
@@ -72,6 +77,69 @@ def get_recent_alerts(
         total = len(alerts)
 
     return RecentAlertsResponse(alerts=alerts, total=total, page=page, page_size=effective_page_size)
+
+
+@router.patch("/alerts/bulk", response_model=BulkUpdateResponse)
+def bulk_update_alerts(
+    request: BulkUpdateRequest,
+    alert_service: AlertService = Depends(get_alert_service),
+    user: UserPrincipal = Depends(require_roles("analyst", "admin")),
+) -> BulkUpdateResponse:
+    updated, not_found = alert_service.bulk_update_status(
+        alert_ids=request.alert_ids,
+        status=request.status,
+        actor=user.username,
+    )
+    return BulkUpdateResponse(updated=updated, not_found=not_found)
+
+
+_CSV_COLUMNS = [
+    "id",
+    "created_at",
+    "prediction_label",
+    "confidence",
+    "risk_level",
+    "malicious_probability",
+    "model_version",
+    "status",
+    "assigned_to",
+    "updated_at",
+]
+
+
+@router.get("/alerts/export")
+def export_alerts_csv(
+    status: str | None = Query(default=None),
+    assigned_to: str | None = Query(default=None),
+    sort_by: str = Query(default="created_at"),
+    sort_order: str = Query(default="desc"),
+    alert_service: AlertService = Depends(get_alert_service),
+    user: UserPrincipal = Depends(require_roles("viewer", "analyst", "admin")),
+) -> StreamingResponse:
+    del user
+    records = alert_service.export_alerts_csv(
+        status=status,
+        assigned_to=assigned_to,
+        sort_by=sort_by,
+        sort_order=sort_order,
+    )
+
+    def generate():
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+        writer.writerow(_CSV_COLUMNS)
+        yield buf.getvalue()
+        for record in records:
+            buf = io.StringIO()
+            writer = csv.writer(buf)
+            writer.writerow([getattr(record, col, "") for col in _CSV_COLUMNS])
+            yield buf.getvalue()
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=alerts.csv"},
+    )
 
 
 @router.get("/alerts/{alert_id}", response_model=AlertDetailResponse)
@@ -144,3 +212,4 @@ def add_alert_note(
     assert alert is not None
     notes = alert_service.get_notes(alert_id)
     return AlertDetailResponse(alert=alert, notes=notes)
+

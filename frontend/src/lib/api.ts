@@ -2,6 +2,9 @@ import type {
   AlertDetailResponse,
   AlertStatus,
   AlertTriageHistoryResponse,
+  AnalyticsResponse,
+  BulkUpdateRequest,
+  BulkUpdateResponse,
   HealthResponse,
   InferenceRequest,
   InferenceResponse,
@@ -127,4 +130,24 @@ export function sendMonitoringEvent(
     method: 'POST',
     body: JSON.stringify({ event_type: eventType, model_version: modelVersion, payload }),
   })
+}
+
+export function fetchAnalytics(days = 14): Promise<AnalyticsResponse> {
+  return request<AnalyticsResponse>(`/analytics?days=${days}`)
+}
+
+export function bulkUpdateAlerts(alertIds: number[], status: AlertStatus): Promise<BulkUpdateResponse> {
+  const body: BulkUpdateRequest = { alert_ids: alertIds, status }
+  return request<BulkUpdateResponse>('/alerts/bulk', {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+}
+
+export function exportAlertsUrl(params: { status?: string; assignedTo?: string } = {}): string {
+  const searchParams = new URLSearchParams()
+  if (params.status) searchParams.set('status', params.status)
+  if (params.assignedTo) searchParams.set('assigned_to', params.assignedTo)
+  const qs = searchParams.toString()
+  return `${API_BASE}/alerts/export${qs ? `?${qs}` : ''}`
 }

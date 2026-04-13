@@ -35,6 +35,7 @@ def _response(
         confidence=confidence,
         risk_level=risk,
         top_contributors=[TopContributor(feature="src_bytes", impact=1.0)],
+        explain_method="heuristic",
         model_version="test-model",
         timestamp=datetime.now(tz=timezone.utc),
     )

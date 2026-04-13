@@ -53,6 +53,19 @@ export function MetricsPanel({ modelInfo }: MetricsPanelProps) {
         </ResponsiveContainer>
       </div>
 
+      {modelInfo.explainability && (
+        <div className="mt-3 rounded border border-slate-700 bg-slate-800/50 p-3 text-xs">
+          <p className="mb-1 font-medium text-slate-200">Explainability</p>
+          <p className="text-slate-300">
+            Primary method: <span className="font-mono text-cyan-400">{modelInfo.explainability.primary_method}</span>
+          </p>
+          <p className="mt-1 text-slate-400">{modelInfo.explainability.description}</p>
+          <p className="mt-1 text-slate-400">
+            Supported: {modelInfo.explainability.supported_methods.join(', ')}
+          </p>
+        </div>
+      )}
+
       {modelInfo.monitoring && (
         <div className="mt-3 text-xs text-slate-400">
           Monitoring hook: {modelInfo.monitoring.monitoring_endpoint}

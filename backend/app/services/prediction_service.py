@@ -6,7 +6,7 @@ import pandas as pd
 
 from backend.app.core.config import Settings
 from backend.app.core.exceptions import ModelNotLoadedError, PredictionError
-from backend.app.ml.feature_map import FEATURE_COLUMNS
+from backend.app.ml.feature_map import FEATURE_COLUMNS, NUMERIC_COLUMNS
 from backend.app.schemas.inference import InferenceRequest, InferenceResponse, TopContributor
 from backend.app.services.model_registry import ModelRegistry
 
@@ -39,13 +39,14 @@ class PredictionService:
             confidence = max(malicious_probability, benign_probability)
             risk_level = self._risk_level(malicious_probability)
 
-            contributors = self._explain_contributors(pipeline, payload, malicious_probability)
+            contributors, explain_method = self._explain_contributors(pipeline, payload, malicious_probability)
             return InferenceResponse(
                 prediction_label=prediction_label,
                 malicious_probability=round(malicious_probability, 4),
                 confidence=round(confidence, 4),
                 risk_level=risk_level,
                 top_contributors=contributors,
+                explain_method=explain_method,
                 model_version=str(model_name),
                 timestamp=datetime.now(tz=timezone.utc),
             )
@@ -56,7 +57,7 @@ class PredictionService:
 
     def _risk_level(self, malicious_probability: float) -> str:
         if malicious_probability >= self.settings.risk_threshold_critical:
-            return "high"
+            return "critical"
         if malicious_probability >= self.settings.risk_threshold_high:
             return "high"
         if malicious_probability >= self.settings.risk_threshold_medium:
@@ -68,27 +69,36 @@ class PredictionService:
         pipeline,
         payload: dict,
         baseline_probability: float,
-    ) -> list[TopContributor]:
+    ) -> tuple[list[TopContributor], str]:
         global_contrib = self._global_feature_contributors(pipeline)
         local_contrib = self._local_sensitivity_contributors(pipeline, payload, baseline_probability)
 
         if not local_contrib and not global_contrib:
-            return self._heuristic_contributors(payload)
+            return self._heuristic_contributors(payload), "heuristic"
 
         merged: dict[str, float] = {}
-        for feature, score in global_contrib.items():
-            merged[feature] = merged.get(feature, 0.0) + score * 0.4
-        for feature, score in local_contrib.items():
-            merged[feature] = merged.get(feature, 0.0) + score * 0.6
+        explain_method: str
+        if global_contrib and local_contrib:
+            explain_method = "feature_importance+sensitivity"
+            for feature, score in global_contrib.items():
+                merged[feature] = merged.get(feature, 0.0) + score * 0.4
+            for feature, score in local_contrib.items():
+                merged[feature] = merged.get(feature, 0.0) + score * 0.6
+        elif global_contrib:
+            explain_method = "feature_importance"
+            merged = dict(global_contrib)
+        else:
+            explain_method = "sensitivity"
+            merged = dict(local_contrib)
 
         ranked = sorted(merged.items(), key=lambda item: item[1], reverse=True)[:3]
         if not ranked or ranked[0][1] <= 0:
-            return self._heuristic_contributors(payload)
+            return self._heuristic_contributors(payload), "heuristic"
         max_score = ranked[0][1]
         return [
             TopContributor(feature=feature, impact=round(score / max_score, 3))
             for feature, score in ranked
-        ]
+        ], explain_method
 
     @staticmethod
     def _global_feature_contributors(pipeline) -> dict[str, float]:
@@ -126,9 +136,8 @@ class PredictionService:
         payload: dict,
         baseline_probability: float,
     ) -> dict[str, float]:
-        numeric_features = ["src_bytes", "dst_bytes", "serror_rate", "count", "srv_count"]
         sensitivity: dict[str, float] = {}
-        for feature in numeric_features:
+        for feature in NUMERIC_COLUMNS:
             original_value = float(payload[feature])
             delta = max(abs(original_value) * 0.1, 1.0 if original_value == 0 else 0.01)
             modified = dict(payload)

@@ -75,6 +75,7 @@ def _stub_response() -> InferenceResponse:
         confidence=0.9,
         risk_level="low",
         top_contributors=[TopContributor(feature="src_bytes", impact=1.0)],
+        explain_method="heuristic",
         model_version="stub-model",
         timestamp=datetime.now(tz=timezone.utc),
     )
@@ -301,6 +302,13 @@ def test_rf_top_contributor_has_impact_of_one(tmp_path: Path) -> None:
     assert response.top_contributors[0].impact == pytest.approx(1.0, abs=0.001)
 
 
+def test_rf_explain_method_is_feature_importance_plus_sensitivity(tmp_path: Path) -> None:
+    service = _make_real_rf_pipeline(tmp_path)
+    response = service.predict(_BASE_REQUEST)
+
+    assert response.explain_method == "feature_importance+sensitivity"
+
+
 # ---------------------------------------------------------------------------
 # Heuristic fallback (pipeline without feature_importances_ or coef_)
 # ---------------------------------------------------------------------------
@@ -317,3 +325,15 @@ def test_heuristic_fallback_when_model_has_no_importances(tmp_path: Path) -> Non
     response = service.predict(_BASE_REQUEST)
     assert len(response.top_contributors) == 3
     assert response.top_contributors[0].impact == pytest.approx(1.0, abs=0.001)
+
+
+def test_heuristic_fallback_explain_method(tmp_path: Path) -> None:
+    model_path = tmp_path / "model.joblib"
+    metrics_path = tmp_path / "metrics.json"
+    joblib.dump({"pipeline": _NoPipelinePipeline(), "model_name": "minimal"}, model_path)
+    metrics_path.write_text(json.dumps({"model_name": "minimal", "metrics": {}}))
+    settings = Settings(model_artifact_path=model_path, metrics_path=metrics_path)
+    service = PredictionService(settings=settings, model_registry=ModelRegistry(settings))
+
+    response = service.predict(_BASE_REQUEST)
+    assert response.explain_method == "heuristic"

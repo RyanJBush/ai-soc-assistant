@@ -52,6 +52,12 @@ def test_model_info_returns_200_with_structured_body() -> None:
     assert body["training_rows"] == 1000
     assert body["test_rows"] == 200
     assert body["metrics"]["precision"] == 0.95
+    # PR-5: explainability metadata
+    assert "explainability" in body
+    assert "supported_methods" in body["explainability"]
+    assert "primary_method" in body["explainability"]
+    assert "description" in body["explainability"]
+    assert len(body["explainability"]["supported_methods"]) > 0
 
 
 def test_model_info_returns_503_when_model_not_loaded() -> None:

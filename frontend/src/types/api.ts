@@ -1,4 +1,4 @@
-export type RiskLevel = 'low' | 'medium' | 'high'
+export type RiskLevel = 'low' | 'medium' | 'high' | 'critical'
 export type AlertStatus = 'new' | 'acknowledged' | 'escalated' | 'resolved'
 
 export interface InferenceRequest {
@@ -27,6 +27,7 @@ export interface InferenceResponse {
   confidence: number
   risk_level: RiskLevel
   top_contributors: TopContributor[]
+  explain_method: string
   model_version: string
   timestamp: string
 }
@@ -51,6 +52,12 @@ export interface MonitoringHookInfo {
   supported_event_types: string[]
 }
 
+export interface ExplainabilityInfo {
+  supported_methods: string[]
+  primary_method: string
+  description: string
+}
+
 export interface ModelInfoResponse {
   model_name: string
   model_version: string
@@ -61,6 +68,7 @@ export interface ModelInfoResponse {
   thresholds: ModelThresholds
   lineage: ModelLineage
   monitoring: MonitoringHookInfo
+  explainability: ExplainabilityInfo
 }
 
 export interface AlertNote {
@@ -126,6 +134,35 @@ export interface MonitoringEventRecord {
 
 export interface MonitoringEventsResponse {
   events: MonitoringEventRecord[]
+}
+
+export interface BulkUpdateRequest {
+  alert_ids: number[]
+  status: AlertStatus
+}
+
+export interface BulkUpdateResponse {
+  updated: number
+  not_found: number[]
+}
+
+export interface DailyVolume {
+  date: string
+  count: number
+  malicious: number
+}
+
+export interface AnalyticsResponse {
+  days: number
+  total_alerts: number
+  malicious_count: number
+  benign_count: number
+  open_count: number
+  malicious_rate: number
+  avg_resolution_hours: number | null
+  by_risk_level: Record<string, number>
+  by_status: Record<string, number>
+  alert_volume_by_day: DailyVolume[]
 }
 
 export interface HealthResponse {

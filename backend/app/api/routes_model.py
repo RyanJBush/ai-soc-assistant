@@ -2,11 +2,28 @@ from fastapi import APIRouter, Depends
 
 from backend.app.core.auth import require_roles
 from backend.app.core.config import Settings, get_settings
-from backend.app.schemas.model_info import ModelInfoResponse, ModelLineage, ModelThresholds, MonitoringHookInfo
+from backend.app.schemas.model_info import (
+    ExplainabilityInfo,
+    ModelInfoResponse,
+    ModelLineage,
+    ModelThresholds,
+    MonitoringHookInfo,
+)
 from backend.app.services.model_observability_service import ModelObservabilityService
 from backend.app.services.model_registry import get_model_registry
 
 router = APIRouter(tags=["model"])
+
+_EXPLAINABILITY_INFO = ExplainabilityInfo(
+    supported_methods=["feature_importance", "sensitivity", "feature_importance+sensitivity", "heuristic"],
+    primary_method="feature_importance+sensitivity",
+    description=(
+        "Feature contributions are computed by blending global model feature importances "
+        "(40% weight) with local per-sample sensitivity analysis (60% weight). "
+        "For models without built-in importances, sensitivity analysis alone is used. "
+        "A heuristic fallback based on raw feature magnitudes is applied when both methods yield no signal."
+    ),
+)
 
 
 def get_observability_service(settings: Settings = Depends(get_settings)) -> ModelObservabilityService:
@@ -47,4 +64,5 @@ def model_info(
             monitoring_endpoint="/monitoring/events",
             supported_event_types=["drift.feature_shift", "performance.window", "prediction.volume"],
         ),
+        explainability=_EXPLAINABILITY_INFO,
     )

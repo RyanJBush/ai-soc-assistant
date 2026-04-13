@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { ActivityFeed } from '../components/ActivityFeed'
 import { AlertDetailPanel } from '../components/AlertDetailPanel'
 import { AlertsTable } from '../components/AlertsTable'
+import { AnalyticsPanel } from '../components/AnalyticsPanel'
 import { HealthPanel } from '../components/HealthPanel'
 import { MetricsPanel } from '../components/MetricsPanel'
 import { PredictionCard } from '../components/PredictionCard'
@@ -12,8 +13,11 @@ import { TrafficInputForm } from '../components/TrafficInputForm'
 import {
   addAlertNote,
   assignAlert,
+  bulkUpdateAlerts,
+  exportAlertsUrl,
   fetchAlertDetail,
   fetchAlertHistory,
+  fetchAnalytics,
   fetchHealth,
   fetchMe,
   fetchModelInfo,
@@ -28,6 +32,7 @@ import type {
   AlertRecord,
   AlertStatus,
   AlertTriageEvent,
+  AnalyticsResponse,
   HealthResponse,
   InferenceRequest,
   InferenceResponse,
@@ -47,6 +52,8 @@ export function DashboardPage() {
   const [alertDetail, setAlertDetail] = useState<AlertDetailResponse | null>(null)
   const [triageHistory, setTriageHistory] = useState<AlertTriageEvent[]>([])
   const [principal, setPrincipal] = useState<UserPrincipal | null>(null)
+  const [analytics, setAnalytics] = useState<AnalyticsResponse | null>(null)
+  const [analyticsDays, setAnalyticsDays] = useState(14)
 
   const [username, setUsername] = useState('analyst')
   const [password, setPassword] = useState('analyst123!')
@@ -85,11 +92,25 @@ export function DashboardPage() {
     }
   }
 
+  async function loadAnalytics(days: number) {
+    try {
+      const data = await fetchAnalytics(days)
+      setAnalytics(data)
+    } catch {
+      // analytics is non-critical; silently ignore failures
+    }
+  }
+
   useEffect(() => {
     if (!principal) return
     void loadDashboardData(page)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [principal, page, statusFilter, assignedToFilter, sortBy, sortOrder])
+
+  useEffect(() => {
+    if (!principal) return
+    void loadAnalytics(analyticsDays)
+  }, [principal, analyticsDays])
 
   async function handleLogin() {
     setError(null)
@@ -113,7 +134,7 @@ export function DashboardPage() {
       const result = await predict(payload)
       setPrediction(result)
       setSuccess(`Prediction completed: ${result.prediction_label.toUpperCase()}`)
-      await loadDashboardData(1)
+      await Promise.all([loadDashboardData(1), loadAnalytics(analyticsDays)])
       setPage(1)
     } catch (apiError) {
       setError((apiError as Error).message)
@@ -136,7 +157,7 @@ export function DashboardPage() {
     const [detail, history] = await Promise.all([fetchAlertDetail(alertId), fetchAlertHistory(alertId)])
     setAlertDetail(detail)
     setTriageHistory(history.events)
-    await loadDashboardData(page)
+    await Promise.all([loadDashboardData(page), loadAnalytics(analyticsDays)])
   }
 
   async function handleStatusUpdate(status: AlertStatus) {
@@ -167,6 +188,16 @@ export function DashboardPage() {
       await addAlertNote(alertDetail.alert.id, note)
       await refreshAlertDetail(alertDetail.alert.id)
       setSuccess(`Added note to alert ${alertDetail.alert.id}`)
+    } catch (apiError) {
+      setError((apiError as Error).message)
+    }
+  }
+
+  async function handleBulkUpdate(alertIds: number[], status: AlertStatus) {
+    try {
+      const result = await bulkUpdateAlerts(alertIds, status)
+      setSuccess(`Bulk update: ${result.updated} updated${result.not_found.length ? `, ${result.not_found.length} not found` : ''}`)
+      await Promise.all([loadDashboardData(page), loadAnalytics(analyticsDays)])
     } catch (apiError) {
       setError((apiError as Error).message)
     }
@@ -226,6 +257,10 @@ export function DashboardPage() {
         <PredictionCard prediction={prediction} />
       </div>
 
+      <div className="mt-4">
+        <AnalyticsPanel analytics={analytics} days={analyticsDays} onDaysChange={setAnalyticsDays} />
+      </div>
+
       <div className="mt-4 grid gap-4 xl:grid-cols-3">
         <div className="xl:col-span-2">
           <AlertsTable
@@ -237,6 +272,7 @@ export function DashboardPage() {
             assignedToFilter={assignedToFilter}
             sortBy={sortBy}
             sortOrder={sortOrder}
+            exportUrl={exportAlertsUrl({ status: statusFilter || undefined, assignedTo: assignedToFilter || undefined })}
             onPageChange={setPage}
             onStatusFilterChange={setStatusFilter}
             onAssignedToFilterChange={setAssignedToFilter}
@@ -245,6 +281,7 @@ export function DashboardPage() {
               setSortOrder(nextSortOrder)
             }}
             onSelectAlert={(id) => void openAlert(id)}
+            onBulkUpdate={handleBulkUpdate}
           />
         </div>
         <AlertDetailPanel
