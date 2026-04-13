@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.7.0] - 2026-04-13
+### Added
+- Analytics & Reporting phase:
+  - `GET /analytics` endpoint with rolling-window SOC KPIs: total alerts, malicious rate, open count, MTTR, risk-level breakdown, status distribution, and per-day volume timeline.
+  - `AnalyticsService` with dual SQLite/PostgreSQL aggregation queries.
+  - `AnalyticsPanel` React component with recharts area chart (volume trend), bar chart (risk breakdown), and pie chart (status distribution) plus configurable day-window selector.
+  - 14 new backend tests and 11 new frontend tests.
+
 ## [0.6.0] - 2026-04-09
 ### Added
 - Phase 6 deployment/recruiter polish artifacts:

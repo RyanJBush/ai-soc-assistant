@@ -6,6 +6,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from backend.app.api.routes_admin import router as admin_router
+from backend.app.api.routes_analytics import router as analytics_router
 from backend.app.api.routes_auth import router as auth_router
 from backend.app.api.routes_health import router as health_router
 from backend.app.api.routes_model import router as model_router
@@ -29,6 +30,7 @@ app.include_router(model_router)
 app.include_router(predict_router)
 app.include_router(admin_router)
 app.include_router(monitoring_router)
+app.include_router(analytics_router)
 
 
 @app.middleware("http")

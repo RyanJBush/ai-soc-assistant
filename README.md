@@ -8,6 +8,7 @@ Production-style SOC platform for ML-assisted alert scoring, analyst triage work
 - ✅ React/Vite SOC dashboard with login, triage, status transitions, assignment, and notes
 - ✅ PostgreSQL-first architecture with SQLite local fallback
 - ✅ Model observability: lineage (hashes), thresholds, monitoring hooks
+- ✅ **Analytics & Reporting**: rolling KPIs (MTTR, malicious rate, risk/status breakdown) with recharts visualizations
 - ✅ CI checks, coverage gates, and smoke script
 
 ---

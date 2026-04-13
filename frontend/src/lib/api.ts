@@ -2,6 +2,7 @@ import type {
   AlertDetailResponse,
   AlertStatus,
   AlertTriageHistoryResponse,
+  AnalyticsResponse,
   HealthResponse,
   InferenceRequest,
   InferenceResponse,
@@ -127,4 +128,8 @@ export function sendMonitoringEvent(
     method: 'POST',
     body: JSON.stringify({ event_type: eventType, model_version: modelVersion, payload }),
   })
+}
+
+export function fetchAnalytics(days = 14): Promise<AnalyticsResponse> {
+  return request<AnalyticsResponse>(`/analytics?days=${days}`)
 }

@@ -136,6 +136,25 @@ export interface MonitoringEventsResponse {
   events: MonitoringEventRecord[]
 }
 
+export interface DailyVolume {
+  date: string
+  count: number
+  malicious: number
+}
+
+export interface AnalyticsResponse {
+  days: number
+  total_alerts: number
+  malicious_count: number
+  benign_count: number
+  open_count: number
+  malicious_rate: number
+  avg_resolution_hours: number | null
+  by_risk_level: Record<string, number>
+  by_status: Record<string, number>
+  alert_volume_by_day: DailyVolume[]
+}
+
 export interface HealthResponse {
   status: 'ok' | 'degraded' | 'error' | string
 }
